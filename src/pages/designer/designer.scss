@@ -1,0 +1,20 @@
+.designer{
+  background-color: #111423;
+  width: 100vw;
+  height: 100vh;
+  color: white;
+
+  .left{
+    width: 200px;
+    background-color: #22242b;
+  }
+
+  .screen{
+    flex: auto;
+  }
+
+  .setting{
+    width: 360px;
+    background-color: white;
+  }
+}
