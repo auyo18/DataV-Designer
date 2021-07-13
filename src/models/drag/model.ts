@@ -11,6 +11,7 @@ export interface DragModelState {
   selected?: number // 选中 id
   hovered?: number // 悬停 id
   shifted: boolean // 是否按下 shift 键
+  clickTime: number // 点击时间，判断是否双击
 }
 
 export interface DragModelType {
@@ -22,6 +23,7 @@ export interface DragModelType {
     SET_SELECTED: Reducer<DragModelState>
     SET_HOVERED: Reducer<DragModelState>
     SET_SHIFTED: Reducer<DragModelState>
+    SET_CLICK_TIME: Reducer<DragModelState>
   }
 }
 
@@ -30,6 +32,7 @@ const DragModel: DragModelType = {
   state: {
     dragging: false,
     shifted: false,
+    clickTime: 0,
   },
   reducers: {
     SET_WIDGETS: (state, { payload }) => {
@@ -55,6 +58,11 @@ const DragModel: DragModelType = {
     SET_SHIFTED: (state, { payload }) => {
       return Object.assign({}, state, {
         shifted: payload,
+      })
+    },
+    SET_CLICK_TIME: (state, { payload }) => {
+      return Object.assign({}, state, {
+        clickTime: payload,
       })
     },
   },

@@ -50,3 +50,13 @@ export function setDragHovered(
     payload,
   })
 }
+
+export function setDragClickTime(
+  dispatch: Dispatch,
+  payload: DragModelState['clickTime'],
+) {
+  return dispatch({
+    type: 'drag/SET_CLICK_TIME',
+    payload,
+  })
+}

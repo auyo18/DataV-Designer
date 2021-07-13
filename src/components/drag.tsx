@@ -14,8 +14,10 @@ interface DragProps {
   onValueChange: (id: number, data: any) => any
 }
 
-const Drag: FC<DragProps> = memo(({ value, onValueChange }) => {
-  const { id, width, height, left, top, background } = useMemo(
+const timeDiff = 200
+
+const Drag: FC<DragProps> = memo(({ value, onValueChange, children }) => {
+  const { id, width, height, left, top, color, background } = useMemo(
     () => ({
       ...value,
       ...value.position,
@@ -24,8 +26,7 @@ const Drag: FC<DragProps> = memo(({ value, onValueChange }) => {
   )
 
   const dispatch = useDispatch()
-
-  const { dragging, selected, hovered, shifted } = useDesigner()
+  const { dragging, selected, hovered, shifted, clickTime } = useDesigner()
   const hasSelected = useMemo(() => {
     return selected === id
   }, [id, selected])
@@ -45,17 +46,16 @@ const Drag: FC<DragProps> = memo(({ value, onValueChange }) => {
 
   const styles = useMemo(
     (): CSSProperties => ({
-      backgroundColor: 'rgba(40,40,66,.7)',
-      color: 'rgb(235,235,235)',
+      color: color || 'white',
       padding: 20,
       borderStyle: 'solid',
       borderColor: hasEditing ? 'rgba(38, 129, 255,.7)' : 'transparent',
       borderWidth: 2,
       cursor: hasEditing ? 'move' : 'pointer',
       transition: 'border-color .2s',
-      background,
+      background: background || '#282842b3',
     }),
-    [background, hasEditing],
+    [background, color, hasEditing],
   )
 
   // 阻止默认事件、冒泡
@@ -65,31 +65,39 @@ const Drag: FC<DragProps> = memo(({ value, onValueChange }) => {
     return
   }, [])
 
+  // TODO：BUG，双击后松开鼠标选中项变成顶级元素
   const handleSelect = useCallback(
     e => {
-      onStopPropagation(e)
+      if (!id) return
+      const isMouseenter = e.type === 'mouseenter'
+      if (Date.now() - clickTime <= timeDiff) {
+        onStopPropagation(e)
+      }
       if (dragging) return
-      if (e.type === 'mouseenter') setDragHovered(dispatch, id)
+      if (isMouseenter) setDragHovered(dispatch, id)
       else setDragSelected(dispatch, id)
     },
-    [dispatch, dragging, id, onStopPropagation],
+    [clickTime, dispatch, dragging, id, onStopPropagation],
   )
 
   const onDragStartHandle = useCallback(
     e => {
+      if (!id) return
       onStopPropagation(e)
       handleSelect(e)
       setDragSelected(dispatch, id)
+      setDragDragging(dispatch, true)
     },
     [dispatch, handleSelect, id, onStopPropagation],
   )
 
   const onDragStopHandle = useCallback(
     (e, d) => {
+      if (!id) return
       onStopPropagation(e)
       onValueChange(id, {
-        left: d.lastX,
-        top: d.lastY,
+        left: d.x,
+        top: d.y,
       })
       setDragDragging(dispatch, false)
     },
@@ -98,13 +106,14 @@ const Drag: FC<DragProps> = memo(({ value, onValueChange }) => {
 
   const onResizeStopHandle = useCallback(
     (e, dir, ref, delta) => {
+      if (!id) return
       onStopPropagation(e)
-      onValueChange(value.id, {
+      onValueChange(id, {
         width: delta.width + width,
         height: delta.height + height,
       })
     },
-    [height, onStopPropagation, onValueChange, value.id, width],
+    [height, id, onStopPropagation, onValueChange, width],
   )
 
   const handleCancelSelect = useCallback(
@@ -119,7 +128,7 @@ const Drag: FC<DragProps> = memo(({ value, onValueChange }) => {
   return (
     <Rnd
       style={styles}
-      bounds="parent"
+      bounds=".screen"
       resizeGrid={moveGrid}
       dragGrid={moveGrid}
       position={{ x: left, y: top }}
@@ -133,10 +142,10 @@ const Drag: FC<DragProps> = memo(({ value, onValueChange }) => {
       onResize={onStopPropagation}
       onResizeStop={onResizeStopHandle}
       onClick={handleSelect}
-      onMouseEnter={handleSelect}
-      onMouseLeave={handleCancelSelect}
+      // onMouseEnter={handleSelect}
+      // onMouseLeave={handleCancelSelect}
     >
-      123
+      {children}
     </Rnd>
   )
 })

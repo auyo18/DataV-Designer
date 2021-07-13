@@ -1,6 +1,7 @@
 import { Drag } from '@/components'
 import { useCallback, useEffect } from 'react'
 import {
+  setDragClickTime,
   setDragSelected,
   setDragShifted,
   setDragWidgets,
@@ -27,6 +28,17 @@ export default function Designer() {
           left: 100,
           top: 50,
         },
+        children: [
+          {
+            id: 3,
+            position: {
+              width: 400,
+              height: 250,
+              left: 100,
+              top: 60,
+            },
+          },
+        ],
       },
       {
         id: 2,
@@ -47,9 +59,14 @@ export default function Designer() {
     [onWidgetChange],
   )
 
-  const handleClick = useCallback(() => {
-    setDragSelected(dispatch, undefined)
-  }, [dispatch])
+  const handleClick = useCallback(
+    e => {
+      // 点击外部清空选中组件
+      e.currentTarget === e.target && setDragSelected(dispatch, undefined)
+      setDragClickTime(dispatch, Date.now())
+    },
+    [dispatch],
+  )
 
   const onShiftKeydownHandle = useCallback(
     ({ key }) => {
@@ -89,7 +106,14 @@ export default function Designer() {
       <Col className="left">left</Col>
       <Col className="screen" onClick={handleClick}>
         {widgets?.map(widget => (
-          <Drag key={widget.id} value={widget} onValueChange={onValueChange} />
+          <Drag key={widget.id} value={widget} onValueChange={onValueChange}>
+            6666
+            {widget.children?.map(item => (
+              <Drag key={item.id} value={item} onValueChange={onValueChange}>
+                8888
+              </Drag>
+            ))}
+          </Drag>
         ))}
       </Col>
       <Col className="setting">

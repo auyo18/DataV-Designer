@@ -14,9 +14,12 @@ const Setting = memo(() => {
 
   const setFormData = useCallback(() => {
     if (selected && currentWidget?.position) {
-      form.setFieldsValue(currentWidget?.position)
+      form.setFieldsValue({
+        ...currentWidget,
+        ...currentWidget?.position,
+      })
     }
-  }, [currentWidget?.position, form, selected])
+  }, [currentWidget, form, selected])
 
   const onValuesChange = useDebounce(
     useCallback(
@@ -89,6 +92,9 @@ const Setting = memo(() => {
           </ProForm.Group>
         </Panel>
         <Panel header="样式" key="style">
+          <Form.Item name="color" label="字体颜色">
+            <Color />
+          </Form.Item>
           <Form.Item name="background" label="背景颜色">
             <Color />
           </Form.Item>
