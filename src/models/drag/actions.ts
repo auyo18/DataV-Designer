@@ -1,6 +1,16 @@
 import { Dispatch } from '@@/plugin-dva/connect'
 import { DragModelState } from './model'
 
+export function setDragPageInfo(
+  dispatch: Dispatch,
+  payload: DragModelState['pageInfo'],
+) {
+  return dispatch({
+    type: 'drag/SET_PAGE_INFO',
+    payload,
+  })
+}
+
 export function setDragWidgets(
   dispatch: Dispatch,
   payload: DragModelState['widgets'],

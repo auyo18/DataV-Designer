@@ -6,6 +6,7 @@ import { Reducer } from '@@/plugin-dva/connect'
 import { DragWidgetTypes } from '@/types'
 
 export interface DragModelState {
+  pageInfo: any // 页面信息
   widgets?: DragWidgetTypes[] // 组件
   dragging: boolean // 是否正在移动
   selected?: number // 选中 id
@@ -18,6 +19,7 @@ export interface DragModelType {
   namespace: 'drag'
   state: DragModelState
   reducers: {
+    SET_PAGE_INFO: Reducer<DragModelState>
     SET_WIDGETS: Reducer<DragModelState>
     SET_DRAGGING: Reducer<DragModelState>
     SET_SELECTED: Reducer<DragModelState>
@@ -30,11 +32,20 @@ export interface DragModelType {
 const DragModel: DragModelType = {
   namespace: 'drag',
   state: {
+    pageInfo: {},
     dragging: false,
     shifted: false,
     clickTime: 0,
   },
   reducers: {
+    SET_PAGE_INFO: (state, { payload }) => {
+      return Object.assign({}, state, {
+        pageInfo: {
+          ...state?.pageInfo,
+          ...payload,
+        },
+      })
+    },
     SET_WIDGETS: (state, { payload }) => {
       return Object.assign({}, state, {
         widgets: payload,

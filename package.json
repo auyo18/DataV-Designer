@@ -29,10 +29,13 @@
     }
   },
   "dependencies": {
+    "@ant-design/pro-card": "^1.14.5",
     "@ant-design/pro-form": "^1.31.2",
     "@ant-design/pro-layout": "^6.5.0",
     "rc-color-picker": "^1.2.6",
     "react": "17.x",
+    "react-dnd": "^14.0.2",
+    "react-dnd-html5-backend": "^14.0.0",
     "react-dom": "17.x",
     "react-rnd": "^10.3.4",
     "umi": "^3.5.8"

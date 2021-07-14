@@ -11,7 +11,25 @@ const useDesigner = () => {
   )
 
   const currentWidget = useMemo(() => {
-    return widgets?.find(widget => widget.id === selected)
+    if (!widgets) return
+    let current: DragWidgetTypes
+    const rec = (list: DragWidgetTypes[]) => {
+      for (const k in list) {
+        const t = list[k]
+        if (t.id === selected) {
+          current = t
+          return true
+        }
+
+        if (t.children) {
+          if (rec(t.children)) return
+        }
+      }
+    }
+
+    rec(widgets)
+
+    return current!
   }, [selected, widgets])
 
   const onWidgetChange = useCallback(
