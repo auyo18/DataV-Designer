@@ -10,13 +10,13 @@ const useDesigner = () => {
     state => state.drag,
   )
 
-  const currentWidget = useMemo(() => {
-    if (!widgets) return
+  const findItem = useCallback((list, id) => {
+    if (!list) return
     let current: DragWidgetTypes
     const rec = (list: DragWidgetTypes[]) => {
       for (const k in list) {
         const t = list[k]
-        if (t.id === selected) {
+        if (t.id === id) {
           current = t
           return true
         }
@@ -27,11 +27,16 @@ const useDesigner = () => {
       }
     }
 
-    rec(widgets)
+    rec(list)
 
     return current!
-  }, [selected, widgets])
+  }, [])
 
+  const currentWidget = useMemo(() => {
+    return findItem(widgets, selected)
+  }, [findItem, selected, widgets])
+
+  // TODO:优化，找到当前更改的组件后就可以退出递归，只更新所在路径的数据
   const onWidgetChange = useCallback(
     (id, value) => {
       if (!widgets) return

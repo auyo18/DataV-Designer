@@ -19,65 +19,93 @@ import {
 import { useDesigner } from '@/hooks'
 import { DragWidgetTypes } from '@/types'
 
-function getStyle(backgroundColor: string): CSSProperties {
-  return {
-    border: '1px solid rgba(0,0,0,0.2)',
-    minHeight: '8rem',
-    minWidth: '8rem',
-    color: 'white',
-    backgroundColor,
-    padding: '2rem',
-    paddingTop: '1rem',
-    margin: '1rem',
-    textAlign: 'center',
-    float: 'left',
-    fontSize: '1rem',
-  }
+type DragObject = {
+  id: number
+  parentId: number | null
+  children?: DragWidgetTypes[]
 }
+
+type DropResult = { dragItem: any; overItem: any }
 
 const LayerItem: FC<{
   value: DragWidgetTypes
-  index: number
-}> = memo(({ value, index, children }) => {
-  const ref = useRef(null)
-  const [hasDropped, setHasDropped] = useState(false)
-  const [hasDroppedOnChild, setHasDroppedOnChild] = useState(false)
+  parentId: number | null
+}> = memo(({ value, parentId, children }) => {
+  const ref = useRef<HTMLDivElement>(null)
 
-  const [{ isDragging }, dragRef, dragPreview] = useDrag({
+  const { id } = value
+
+  const [{ isDragging }, dragRef, dragPreview] = useDrag<
+    DragObject,
+    DropResult,
+    any
+  >({
+    type: 'item',
+    item: {
+      id,
+      parentId,
+      children: value.children,
+    },
     collect: (monitor: DragSourceMonitor) => ({
       isDragging: monitor.isDragging(),
     }),
-    // item 中包含 index 属性，则在 drop 组件 hover 和 drop 是可以根据第一个参数获取到 index 值
-    type: 'box',
   })
 
-  const [{ isOver, isOverCurrent }, dropRef] = useDrop(
+  const [, dropRef] = useDrop(
     () => ({
-      accept: 'box',
-      drop(item, monitor) {
+      accept: 'item',
+      hover(item: DragObject, monitor) {
+        if (!ref.current) {
+          return
+        }
+
+        const {
+          id: draggedId,
+          parentId: dragParentId,
+        } = monitor.getItem() as DragObject
+
+        const { parentId: overParentId } = item
+        const hoverId = id
+
         const didDrop = monitor.didDrop()
-        setHasDropped(true)
-        setHasDroppedOnChild(didDrop)
+
+        if (didDrop) {
+          return undefined
+        }
+
+        if (draggedId) {
+          if (
+            draggedId === hoverId ||
+            draggedId === overParentId ||
+            dragParentId === hoverId
+          )
+            return undefined
+
+          console.log(draggedId, dragParentId, hoverId, overParentId)
+
+          return {
+            dragItem: { draggedId, dragParentId },
+            overItem: { overId: hoverId, overParentId },
+          }
+        }
       },
       collect: monitor => ({
-        isOver: monitor.isOver(),
-        isOverCurrent: monitor.isOver({ shallow: true }),
+        isOver: monitor.isOver({ shallow: true }),
+        canDrop: monitor.canDrop(),
       }),
     }),
-    [setHasDropped, setHasDroppedOnChild],
+    [],
   )
-  let backgroundColor = 'rgba(0, 0, 0, .5)'
-  if (isOverCurrent || isOver) {
-    backgroundColor = 'darkgreen'
-  }
 
   dragRef(dropRef(ref))
 
   return (
-    <div ref={ref} style={getStyle(backgroundColor)}>
+    <div
+      ref={ref}
+      style={{ padding: 20, backgroundColor: '#3a3d48', margin: 4 }}
+    >
       {value.id}
       <br />
-      {hasDropped && <span>dropped {hasDroppedOnChild && ' on child'}</span>}
 
       <div>{children}</div>
     </div>
@@ -92,15 +120,14 @@ const Layer = memo(() => {
   ])
 
   const createLayer = useCallback(() => {
-    const rec = (list?: DragWidgetTypes[]) => {
-      if (!list) return
+    const rec = (list: DragWidgetTypes[], parentId: number | null) => {
       const d: any[] = []
       for (const k in list) {
         if (Object.prototype.hasOwnProperty.call(list, k)) {
           const item = list[k]
           d[k] = (
-            <LayerItem key={item?.id} index={Number(k)} value={item}>
-              {rec(item?.children)}
+            <LayerItem key={item.id} parentId={parentId} value={item}>
+              {item.children && rec(item.children, item.id)}
             </LayerItem>
           )
         }
@@ -109,7 +136,7 @@ const Layer = memo(() => {
       return d
     }
 
-    return rec(list)
+    return rec(list, null)
   }, [list])
 
   return <DndProvider backend={HTML5Backend}>{createLayer()}</DndProvider>
