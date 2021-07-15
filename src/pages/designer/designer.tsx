@@ -2,6 +2,7 @@ import { Drag } from '@/components'
 import { CSSProperties, useCallback, useEffect, useMemo, useState } from 'react'
 import {
   setDragClickTime,
+  setDragFlatten,
   setDragPageInfo,
   setDragSelected,
   setDragShifted,
@@ -10,19 +11,94 @@ import {
 import { useDispatch } from 'umi'
 import { Row, Col } from 'antd'
 import Layer from './layer'
-import Setting from './setting/setting'
+import Setting from './setting'
 import { useDebounce, useDesigner } from '@/hooks'
 import './designer.scss'
+import { DragWidgetTypes } from '@/types'
 
 const shiftKeyName = 'Shift',
   leftWidth = 200,
-  settingWidth = 360
+  settingWidth = 360,
+  _widgets = [
+    {
+      id: 1,
+      type: 'border',
+      position: {
+        width: '40%',
+        height: '20%',
+        left: 100,
+        top: 50,
+      },
+      children: [
+        {
+          id: 3,
+          type: 'border',
+          position: {
+            width: 400,
+            height: 250,
+            left: 100,
+            top: 60,
+          },
+          children: [
+            {
+              id: 4,
+              type: 'border',
+              position: {
+                width: 50,
+                height: 100,
+                left: 200,
+                top: 100,
+              },
+            },
+          ],
+        },
+      ],
+    },
+    {
+      id: 2,
+      type: 'border',
+      position: {
+        width: 400,
+        height: 250,
+        left: 700,
+        top: 160,
+      },
+    },
+  ]
 
 export default function Designer() {
   const dispatch = useDispatch()
   const { pageInfo, widgets, onWidgetChange } = useDesigner()
-
   const [widowWidth, setWindowWidth] = useState(document.body.offsetWidth)
+
+  const flattenWidgets = useCallback(
+    (widget, name = '#', parent?, result = {}) => {
+      const children = [],
+        widgets = widget.children
+
+      for (const k in widgets) {
+        if (Object.prototype.hasOwnProperty.call(widgets, k)) {
+          const _widget = widgets[k]
+          _widget.id = String(_widget.id)
+          children.push(_widget.id)
+          flattenWidgets(
+            _widget,
+            String(_widget.id),
+            (parent ? parent + '/' : '') + name,
+            result,
+          )
+        }
+      }
+
+      result[name] = {
+        parent,
+        widget: { ...widget, children: undefined },
+        children,
+      }
+      return result
+    },
+    [],
+  )
 
   const initialState = useCallback(() => {
     setDragPageInfo(dispatch, {
@@ -30,41 +106,11 @@ export default function Designer() {
       height: 1080,
       backgroundColor: '#181b24',
     })
-    setDragWidgets(dispatch, [
-      {
-        id: 1,
-        type: 'border',
-        position: {
-          width: '40%',
-          height: '20%',
-          left: 100,
-          top: 50,
-        },
-        children: [
-          {
-            id: 3,
-            type: 'border',
-            position: {
-              width: 400,
-              height: 250,
-              left: 100,
-              top: 60,
-            },
-          },
-        ],
-      },
-      {
-        id: 2,
-        type: 'border',
-        position: {
-          width: 400,
-          height: 250,
-          left: 700,
-          top: 160,
-        },
-      },
-    ])
-  }, [dispatch])
+
+    setDragFlatten(dispatch, flattenWidgets({ children: _widgets }))
+
+    setDragWidgets(dispatch, _widgets)
+  }, [dispatch, flattenWidgets])
 
   const { scale, screenContainerStyles } = useMemo((): {
     scale: number
@@ -158,7 +204,7 @@ export default function Designer() {
               onValueChange={onValueChange}
               scale={scale}
             >
-              6666
+              {widget.id}
               {widget.children?.map(item => (
                 <Drag
                   key={item.id}
@@ -166,7 +212,7 @@ export default function Designer() {
                   onValueChange={onValueChange}
                   scale={scale}
                 >
-                  8888
+                  {item.id}
                 </Drag>
               ))}
             </Drag>

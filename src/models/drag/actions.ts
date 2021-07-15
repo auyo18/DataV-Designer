@@ -21,6 +21,16 @@ export function setDragWidgets(
   })
 }
 
+export function setDragFlatten(
+  dispatch: Dispatch,
+  payload: DragModelState['flatten'],
+) {
+  return dispatch({
+    type: 'drag/SET_FLATTEN',
+    payload,
+  })
+}
+
 export function setDragDragging(
   dispatch: Dispatch,
   payload: DragModelState['dragging'],

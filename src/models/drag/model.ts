@@ -8,6 +8,13 @@ import { DragWidgetTypes } from '@/types'
 export interface DragModelState {
   pageInfo: any // 页面信息
   widgets?: DragWidgetTypes[] // 组件
+  flatten?: {
+    [key: string]: {
+      parent: string
+      children: string[]
+      widget: DragWidgetTypes
+    }
+  } // 组件一维数据
   dragging: boolean // 是否正在移动
   selected?: number // 选中 id
   hovered?: number // 悬停 id
@@ -21,6 +28,7 @@ export interface DragModelType {
   reducers: {
     SET_PAGE_INFO: Reducer<DragModelState>
     SET_WIDGETS: Reducer<DragModelState>
+    SET_FLATTEN: Reducer<DragModelState>
     SET_DRAGGING: Reducer<DragModelState>
     SET_SELECTED: Reducer<DragModelState>
     SET_HOVERED: Reducer<DragModelState>
@@ -49,6 +57,11 @@ const DragModel: DragModelType = {
     SET_WIDGETS: (state, { payload }) => {
       return Object.assign({}, state, {
         widgets: payload,
+      })
+    },
+    SET_FLATTEN: (state, { payload }) => {
+      return Object.assign({}, state, {
+        flatten: payload,
       })
     },
     SET_DRAGGING: (state, { payload }) => {

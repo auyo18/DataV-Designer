@@ -1,5 +1,5 @@
 export interface DragWidgetTypes {
-  id: number
+  id: string | number
   type: string
   position: {
     width: number | string
