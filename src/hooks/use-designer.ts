@@ -1,6 +1,6 @@
 import { useSelector } from '@/hooks/index'
 import { useCallback, useMemo } from 'react'
-import { setDragWidgets } from '@/models/drag/actions'
+import { setDragFlatten, setDragWidgets } from '@/models/drag/actions'
 import { useDispatch } from 'umi'
 import { DragWidgetTypes } from '@/types'
 import { DragModelState } from '@/models/drag/model'
@@ -14,6 +14,48 @@ const useDesigner = () => {
   const currentWidget = useMemo(() => {
     return selected && flatten?.[selected]?.widget
   }, [flatten, selected])
+
+  const flattenWidgets = useCallback(
+    (
+      widget,
+      name = '#',
+      parent?,
+      result = {},
+      totalX: number = 0,
+      totalY: number = 0,
+    ) => {
+      const children = [],
+        widgets = widget.children
+
+      for (const k in widgets) {
+        if (Object.prototype.hasOwnProperty.call(widgets, k)) {
+          const _widget = widgets[k]
+          _widget.id = String(_widget.id)
+          console.log(_widget, _widget.position.x, '_widget.position.x')
+          children.push(_widget.id)
+          flattenWidgets(
+            _widget,
+            String(_widget.id),
+            (parent ? parent + '/' : '') + name,
+            result,
+            totalX + _widget.position.left,
+            totalY + _widget.position.top,
+          )
+        }
+      }
+
+      result[name] = {
+        parent,
+        widget: { ...widget, children: undefined },
+        children,
+        totalX,
+        totalY,
+      }
+      console.log(result)
+      return result
+    },
+    [],
+  )
 
   // TODO:优化，找到当前更改的组件后就可以退出递归，只更新所在路径的数据
   const onWidgetChange = useCallback(
@@ -45,13 +87,18 @@ const useDesigner = () => {
         return temp
       }
 
-      setDragWidgets(dispatch, rec(widgets))
+      const _widgets = rec(widgets)
+
+      setDragFlatten(dispatch, flattenWidgets({ children: _widgets }))
+
+      setDragWidgets(dispatch, rec(_widgets))
     },
-    [dispatch, widgets],
+    [dispatch, flattenWidgets, widgets],
   )
 
   const onFlattenChange = useCallback(
     (newFlatten: DragModelState['flatten']) => {
+      console.log(newFlatten, 'newFlatten')
       const rec = (flatten?: {
         parent: string
         children: string[]
@@ -69,6 +116,8 @@ const useDesigner = () => {
         return _widgets
       }
 
+      setDragFlatten(dispatch, newFlatten)
+
       setDragWidgets(dispatch, rec(newFlatten?.['#']))
     },
     [dispatch],
@@ -83,6 +132,7 @@ const useDesigner = () => {
     ...rest,
     onWidgetChange,
     onFlattenChange,
+    flattenWidgets,
   }
 }
 

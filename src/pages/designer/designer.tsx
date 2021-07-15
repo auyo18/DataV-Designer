@@ -24,8 +24,8 @@ const shiftKeyName = 'Shift',
       id: 1,
       type: 'border',
       position: {
-        width: '40%',
-        height: '20%',
+        width: 400,
+        height: 500,
         left: 100,
         top: 50,
       },
@@ -68,37 +68,8 @@ const shiftKeyName = 'Shift',
 
 export default function Designer() {
   const dispatch = useDispatch()
-  const { pageInfo, widgets, onWidgetChange } = useDesigner()
+  const { pageInfo, widgets, flattenWidgets, onWidgetChange } = useDesigner()
   const [widowWidth, setWindowWidth] = useState(document.body.offsetWidth)
-
-  const flattenWidgets = useCallback(
-    (widget, name = '#', parent?, result = {}) => {
-      const children = [],
-        widgets = widget.children
-
-      for (const k in widgets) {
-        if (Object.prototype.hasOwnProperty.call(widgets, k)) {
-          const _widget = widgets[k]
-          _widget.id = String(_widget.id)
-          children.push(_widget.id)
-          flattenWidgets(
-            _widget,
-            String(_widget.id),
-            (parent ? parent + '/' : '') + name,
-            result,
-          )
-        }
-      }
-
-      result[name] = {
-        parent,
-        widget: { ...widget, children: undefined },
-        children,
-      }
-      return result
-    },
-    [],
-  )
 
   const initialState = useCallback(() => {
     setDragPageInfo(dispatch, {
@@ -179,6 +150,31 @@ export default function Designer() {
     window.addEventListener('resize', onResizeHandle)
   }, [onResizeHandle, onShiftKeydownHandle, onShiftKeyupHandle])
 
+  const createDrag = useCallback(() => {
+    const rec = (list: DragWidgetTypes[], parentId: string | number | null) => {
+      if (!list) return
+
+      const d: any[] = []
+      for (let i = 0, length = list.length - 1; i <= length; i++) {
+        const item = list[i]
+        d[length - i] = (
+          <Drag
+            key={item.id}
+            value={item}
+            onValueChange={onValueChange}
+            scale={scale}
+          >
+            <div>{item.id}</div>
+            {item.children && rec(item.children, item.id)}
+          </Drag>
+        )
+      }
+      return d
+    }
+
+    return rec(widgets!, null)
+  }, [onValueChange, scale, widgets])
+
   useEffect(() => {
     bindEvent()
     return () => {
@@ -197,26 +193,7 @@ export default function Designer() {
       </Col>
       <Col className="screen" onClick={handleClick}>
         <div className="container" style={screenContainerStyles}>
-          {widgets?.map(widget => (
-            <Drag
-              key={widget.id}
-              value={widget}
-              onValueChange={onValueChange}
-              scale={scale}
-            >
-              {widget.id}
-              {widget.children?.map(item => (
-                <Drag
-                  key={item.id}
-                  value={item}
-                  onValueChange={onValueChange}
-                  scale={scale}
-                >
-                  {item.id}
-                </Drag>
-              ))}
-            </Drag>
-          ))}
+          {createDrag()}
         </div>
       </Col>
       <Col className="setting" style={{ width: settingWidth }}>

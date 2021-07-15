@@ -11,7 +11,7 @@ import { DragWidgetTypes } from '@/types'
 
 interface DragProps {
   value: DragWidgetTypes
-  onValueChange: (id: number, data: any) => any
+  onValueChange: (id: number | string, data: any) => any
   scale: number
 }
 
@@ -28,14 +28,8 @@ const Drag: FC<DragProps> = memo(
     )
 
     const dispatch = useDispatch()
-    const {
-      pageInfo,
-      dragging,
-      selected,
-      hovered,
-      shifted,
-      clickTime,
-    } = useDesigner()
+    const { pageInfo, dragging, selected, hovered, shifted, clickTime } =
+      useDesigner()
     const hasSelected = useMemo(() => {
       return selected === id
     }, [id, selected])

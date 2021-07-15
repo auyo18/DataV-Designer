@@ -76,14 +76,25 @@ const LayerItem: FC<{
         // dropParent 的 children 添加 dragId
         const newChildren = dropParent?.children || [] // 要考虑children为空，inside的情况
         const idx = newChildren.indexOf(dropId)
+        // TODO: 优化逻辑
         switch (position) {
           case 'up':
             newChildren.splice(idx, 0, dragId)
             _dragItem.parent = dropItem.parent
+            _dragItem.widget.position = {
+              ..._dragItem.widget.position,
+              left: _dragItem.totalX - dropParent.totalX,
+              top: _dragItem.totalY - dropParent.totalY,
+            }
             break
           case 'down':
             newChildren.splice(idx + 1, 0, dragId)
             _dragItem.parent = dropItem.parent
+            _dragItem.widget.position = {
+              ..._dragItem.widget.position,
+              left: _dragItem.totalX - dropParent.totalX,
+              top: _dragItem.totalY - dropParent.totalY,
+            }
             break
           case 'middle':
             if (!dropItem.children) {
@@ -91,12 +102,18 @@ const LayerItem: FC<{
             }
             _dragItem.parent = dropItem.parent + '/' + dropId
             dropItem.children.unshift(dragId)
+            _dragItem.widget.position = {
+              ..._dragItem.widget.position,
+              left: _dragItem.totalX - dropItem.totalX,
+              top: _dragItem.totalY - dropItem.totalY,
+            }
             _dragItem.children?.forEach((id: string) => {
               const item = newFlatten[id]
               item.parent = dropItem.parent + '/' + dropId + '/' + dragId
             })
             break
         }
+
         dropParent.children = newChildren
       } catch (error) {
         console.error(error)
@@ -124,63 +141,59 @@ const LayerItem: FC<{
     [id, value.children, parentId],
   )
 
-  const drop: (
-    item: DragObject,
-    monitor: DropTargetMonitor,
-  ) => void = useCallback(
-    (item: DragObject, monitor) => {
-      // 如果 children 已经作为了 drop target，不处理
-      const didDrop = monitor.didDrop()
-      if (didDrop) {
-        return
-      }
-      const [newFlatten] = dropItem({
-        dragId: item.id, // 内部拖拽用dragId
-        dropId: String(id),
-        position,
-        flatten,
-      })
-      newFlatten && onFlattenChange(newFlatten)
-    },
-    [dropItem, flatten, id, onFlattenChange, position],
-  )
-
-  const hover: (
-    item: DragObject,
-    monitor: DropTargetMonitor,
-  ) => void = useCallback(
-    (item: DragObject, monitor) => {
-      const dragId = item.id
-
-      // 拖拽元素下标与鼠标悬浮元素下标一致时，不进行操作
-      if (dragId === id) {
-        return
-      }
-
-      const didHover = monitor.isOver({ shallow: true })
-      if (didHover) {
-        const hoverBoundingRect =
-          ref.current && ref.current.getBoundingClientRect()
-
-        const hoverHeight = hoverBoundingRect?.height || 0
-        const dragOffset = monitor.getClientOffset()
-        const hoverClientY =
-          (dragOffset?.y || 0) - (hoverBoundingRect?.top || 0)
-
-        const topBoundary = hoverHeight / 3,
-          bottomBoundary = hoverHeight / 1.5
-
-        if (hoverClientY < topBoundary) {
-          setPosition('up')
-        } else if (hoverClientY <= bottomBoundary) {
-          setPosition('middle')
-        } else {
-          setPosition('down')
+  const drop: (item: DragObject, monitor: DropTargetMonitor) => void =
+    useCallback(
+      (item: DragObject, monitor) => {
+        // 如果 children 已经作为了 drop target，不处理
+        const didDrop = monitor.didDrop()
+        if (didDrop) {
+          return
         }
-      }
-    },
-    [id],
-  )
+        const [newFlatten] = dropItem({
+          dragId: item.id, // 内部拖拽用dragId
+          dropId: String(id),
+          position,
+          flatten,
+        })
+        newFlatten && onFlattenChange(newFlatten)
+      },
+      [dropItem, flatten, id, onFlattenChange, position],
+    )
+
+  const hover: (item: DragObject, monitor: DropTargetMonitor) => void =
+    useCallback(
+      (item: DragObject, monitor) => {
+        const dragId = item.id
+
+        // 拖拽元素下标与鼠标悬浮元素下标一致时，不进行操作
+        if (dragId === id) {
+          return
+        }
+
+        const didHover = monitor.isOver({ shallow: true })
+        if (didHover) {
+          const hoverBoundingRect =
+            ref.current && ref.current.getBoundingClientRect()
+
+          const hoverHeight = hoverBoundingRect?.height || 0
+          const dragOffset = monitor.getClientOffset()
+          const hoverClientY =
+            (dragOffset?.y || 0) - (hoverBoundingRect?.top || 0)
+
+          const topBoundary = hoverHeight / 3,
+            bottomBoundary = hoverHeight / 1.5
+
+          if (hoverClientY < topBoundary) {
+            setPosition('up')
+          } else if (hoverClientY <= bottomBoundary) {
+            setPosition('middle')
+          } else {
+            setPosition('down')
+          }
+        }
+      },
+      [id],
+    )
 
   const [{ canDrop, isOver }, dropRef] = useDrop(
     () => ({
@@ -203,8 +216,7 @@ const LayerItem: FC<{
     let style: CSSProperties = {
       padding: 20,
       backgroundColor: '#3a3d48',
-      margin: 4,
-      opacity: isDragging ? 0 : 1,
+      opacity: isDragging ? 0.4 : 1,
       cursor: 'grab',
       borderWidth: '2px',
       borderStyle: 'solid',

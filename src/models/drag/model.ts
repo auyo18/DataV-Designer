@@ -16,8 +16,8 @@ export interface DragModelState {
     }
   } // 组件一维数据
   dragging: boolean // 是否正在移动
-  selected?: number // 选中 id
-  hovered?: number // 悬停 id
+  selected?: number | string // 选中 id
+  hovered?: number | string // 悬停 id
   shifted: boolean // 是否按下 shift 键
   clickTime: number // 点击时间，判断是否双击
 }
