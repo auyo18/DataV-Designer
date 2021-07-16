@@ -1,20 +1,22 @@
-.designer{
-  background-color: #313239;
-  width: 100vw;
-  height: 100vh;
-  color: white;
+@import '../../assets/styles/mixin';
 
-  .layer{
-    background-color: #22242b;
-    border-right: 1px solid #0d0e10;
+.designer {
+  background-color: #e4e4e4;
+  width: 100vw;
+  padding-top: 1px;
+  height: calc(100vh - 61px);
+
+  .layer {
+    background-color: #f5f5f5;
+    @include flex($direction:column);
   }
 
-  .screen{
+  .screen {
     flex: 1;
     overflow: hidden;
   }
 
-  .setting{
-    background-color: white;
+  .setting {
+    background-color: #f5f5f5;
   }
 }

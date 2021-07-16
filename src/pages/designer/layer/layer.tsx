@@ -1,6 +1,7 @@
 import {
   CSSProperties,
   FC,
+  Fragment,
   memo,
   useCallback,
   useMemo,
@@ -12,135 +13,153 @@ import { DndProvider, DragSourceMonitor, useDrag, useDrop } from 'react-dnd'
 import { useDesigner } from '@/hooks'
 import { DragWidgetTypes } from '@/types'
 import { DropTargetMonitor } from 'react-dnd/dist/types/types'
-import { setDragSelected } from '@/models/drag/actions'
+import { setDragSelectedMultiple, setDragSelected } from '@/models/drag/actions'
 import { useDispatch } from 'umi'
+import { Button, Collapse, Space, Badge } from 'antd'
+import { GroupOutlined, RightOutlined, DownOutlined } from '@ant-design/icons'
 import './layer.scss'
 
 type DragObject = {
-  id: string
+  uniqueId: string
   parent?: string
 }
 
 type DropResult = { dragItem: any; overItem: any }
 
+const groupName = 'group',
+  { Panel } = Collapse,
+  dropItem = ({
+    dragId,
+    dropId,
+    position,
+    flatten,
+    separator,
+  }: {
+    dragId: string
+    dropId: string
+    position?: 'up' | 'middle' | 'down'
+    flatten: any
+    separator: string
+  }) => {
+    if (!position) return []
+
+    let newFlatten = { ...flatten }
+
+    const _dragItem = newFlatten[dragId]
+
+    const dropItem = newFlatten[dropId]
+    const parents = dropItem.parent.split(separator)
+    let dropParent = newFlatten[parents[parents.length - 1]]
+    if (dropId === dragId) {
+      return []
+    }
+
+    let newId = dragId
+    try {
+      const newParentId = dropParent?.uniqueId || '0'
+      newId = newId.replace(_dragItem.parent, newParentId)
+    } catch (error) {
+      console.error(error)
+    }
+
+    // dragParent 的 children 删除 dragId
+    try {
+      const parents = _dragItem.parent.split(separator)
+      const dragParent = newFlatten[parents[parents.length - 1]]
+      const idx = dragParent?.children.indexOf(dragId)
+      if (idx > -1) {
+        dragParent.children.splice(idx, 1)
+      }
+    } catch (error) {
+      console.error(error)
+    }
+    try {
+      // dropParent 的 children 添加 dragId
+      const newChildren = dropParent?.children || [] // 要考虑children为空，inside的情况
+      const idx = newChildren.indexOf(dropId)
+      // TODO: 优化逻辑
+      switch (position) {
+        case 'up':
+          newChildren.splice(idx, 0, dragId)
+          _dragItem.parent = dropItem.parent
+          _dragItem.widget.position = {
+            ..._dragItem.widget.position,
+            left: _dragItem.totalX - dropParent.totalX,
+            top: _dragItem.totalY - dropParent.totalY,
+          }
+          break
+        case 'down':
+          newChildren.splice(idx + 1, 0, dragId)
+          _dragItem.parent = dropItem.parent
+          _dragItem.widget.position = {
+            ..._dragItem.widget.position,
+            left: _dragItem.totalX - dropParent.totalX,
+            top: _dragItem.totalY - dropParent.totalY,
+          }
+          break
+        case 'middle':
+          if (!dropItem.children) {
+            dropItem.children = []
+          }
+          _dragItem.parent = dropItem.parent + separator + dropId
+          dropItem.children.unshift(dragId)
+          _dragItem.widget.position = {
+            ..._dragItem.widget.position,
+            left: _dragItem.totalX - dropItem.totalX,
+            top: _dragItem.totalY - dropItem.totalY,
+          }
+          _dragItem.children?.forEach((id: string) => {
+            const item = newFlatten[id]
+            item.parent =
+              dropItem.parent + separator + dropId + separator + dragId
+          })
+          break
+      }
+
+      dropParent.children = newChildren
+    } catch (error) {
+      console.error(error)
+    }
+
+    return [newFlatten, newId]
+  }
+
 const LayerItem: FC<{
   value: DragWidgetTypes
-}> = memo(({ value, children }) => {
+  level: number
+}> = memo(({ value, level, children }) => {
   const dispatch = useDispatch()
+
+  const [activeKey, setActiveKey] = useState<string[]>()
+
+  const onCollapseChange = useCallback(() => {
+    setActiveKey(key => {
+      return key?.length ? [] : ['1']
+    })
+  }, [])
 
   const ref = useRef<HTMLDivElement>(null)
   const [position, setPosition] = useState<'up' | 'middle' | 'down'>()
 
-  const { flatten, selected, separator, onFlattenChange } = useDesigner()
+  const {
+    flatten,
+    selected,
+    controlled,
+    separator,
+    onFlattenChange,
+  } = useDesigner()
 
-  const dropItem = useCallback(
-    ({
-      dragId,
-      dropId,
-      position,
-      flatten,
-    }: {
-      dragId: string
-      dropId: string
-      position?: 'up' | 'middle' | 'down'
-      flatten: any
-    }) => {
-      if (!position) return []
-
-      let newFlatten = { ...flatten }
-
-      const _dragItem = newFlatten[dragId]
-
-      const dropItem = newFlatten[dropId]
-      const parents = dropItem.parent.split(separator)
-      let dropParent = newFlatten[parents[parents.length - 1]]
-      if (dropId === dragId) {
-        return []
-      }
-
-      let newId = dragId
-      try {
-        const newParentId = dropParent?.id || '0'
-        newId = newId.replace(_dragItem.parent, newParentId)
-      } catch (error) {
-        console.error(error)
-      }
-
-      // dragParent 的 children 删除 dragId
-      try {
-        const parents = _dragItem.parent.split(separator)
-        const dragParent = newFlatten[parents[parents.length - 1]]
-        const idx = dragParent?.children.indexOf(dragId)
-        if (idx > -1) {
-          dragParent.children.splice(idx, 1)
-        }
-      } catch (error) {
-        console.error(error)
-      }
-      try {
-        // dropParent 的 children 添加 dragId
-        const newChildren = dropParent?.children || [] // 要考虑children为空，inside的情况
-        const idx = newChildren.indexOf(dropId)
-        // TODO: 优化逻辑
-        switch (position) {
-          case 'up':
-            newChildren.splice(idx, 0, dragId)
-            _dragItem.parent = dropItem.parent
-            _dragItem.widget.position = {
-              ..._dragItem.widget.position,
-              left: _dragItem.totalX - dropParent.totalX,
-              top: _dragItem.totalY - dropParent.totalY,
-            }
-            break
-          case 'down':
-            newChildren.splice(idx + 1, 0, dragId)
-            _dragItem.parent = dropItem.parent
-            _dragItem.widget.position = {
-              ..._dragItem.widget.position,
-              left: _dragItem.totalX - dropParent.totalX,
-              top: _dragItem.totalY - dropParent.totalY,
-            }
-            break
-          case 'middle':
-            if (!dropItem.children) {
-              dropItem.children = []
-            }
-            _dragItem.parent = dropItem.parent + separator + dropId
-            dropItem.children.unshift(dragId)
-            _dragItem.widget.position = {
-              ..._dragItem.widget.position,
-              left: _dragItem.totalX - dropItem.totalX,
-              top: _dragItem.totalY - dropItem.totalY,
-            }
-            _dragItem.children?.forEach((id: string) => {
-              const item = newFlatten[id]
-              item.parent =
-                dropItem.parent + separator + dropId + separator + dragId
-            })
-            break
-        }
-
-        dropParent.children = newChildren
-      } catch (error) {
-        console.error(error)
-      }
-
-      return [newFlatten, newId]
-    },
-    [separator],
-  )
-
-  const { id } = value,
+  const { uniqueId, type } = value,
     item = useMemo(
       () => ({
-        id: String(id),
+        uniqueId,
       }),
-      [id],
+      [uniqueId],
     )
 
   const [{ isDragging }, dragRef] = useDrag<DragObject, DropResult, any>(
     {
-      type: 'item',
+      type: 'layer',
       item,
       collect: (monitor: DragSourceMonitor) => ({
         isDragging: monitor.isDragging(),
@@ -159,16 +178,18 @@ const LayerItem: FC<{
       if (didDrop) {
         return
       }
+
       const [newFlatten, newId] = dropItem({
-        dragId: item.id, // 内部拖拽用dragId
-        dropId: String(id),
+        dragId: item.uniqueId, // 内部拖拽用dragId
+        dropId: uniqueId,
         position,
         flatten,
+        separator,
       })
       newFlatten && onFlattenChange(newFlatten)
-      newId && setDragSelected(dispatch, newId)
+      newId && setDragSelected(dispatch, [newId])
     },
-    [dispatch, dropItem, flatten, id, onFlattenChange, position],
+    [dispatch, flatten, onFlattenChange, position, separator, uniqueId],
   )
 
   const hover: (
@@ -176,12 +197,12 @@ const LayerItem: FC<{
     monitor: DropTargetMonitor,
   ) => void = useCallback(
     (item: DragObject, monitor) => {
-      const dragId = item.id
+      const dragId = item.uniqueId
 
       // 拖拽元素下标与鼠标悬浮元素下标一致或拖拽元素包含鼠标悬浮元素时，不进行操作
       if (
-        dragId === id ||
-        flatten?.[id].parent.split(separator).includes(dragId)
+        dragId === uniqueId ||
+        flatten?.[uniqueId].parent.split(separator).includes(dragId)
       ) {
         setPosition(undefined)
         return
@@ -197,24 +218,28 @@ const LayerItem: FC<{
         const hoverClientY =
           (dragOffset?.y || 0) - (hoverBoundingRect?.top || 0)
 
-        const topBoundary = hoverHeight / 3,
-          bottomBoundary = hoverHeight / 1.5
+        const topBoundary = Math.min(hoverHeight / 3, 60),
+          bottomBoundary = Math.max(hoverHeight / 1.5, hoverHeight - 60)
 
+        let position: any
         if (hoverClientY < topBoundary) {
+          position = 'up'
           setPosition('up')
-        } else if (hoverClientY <= bottomBoundary) {
+        } else if (hoverClientY <= bottomBoundary && type === groupName) {
+          position = 'middle'
           setPosition('middle')
-        } else {
+        } else if (hoverClientY > bottomBoundary) {
+          position = 'down'
           setPosition('down')
         }
       }
     },
-    [id],
+    [uniqueId, flatten, separator, type],
   )
 
   const [{ canDrop, isOver }, dropRef] = useDrop(
     () => ({
-      accept: 'item',
+      accept: 'layer',
       drop,
       hover,
       collect: monitor => ({
@@ -231,23 +256,26 @@ const LayerItem: FC<{
 
   let overwriteStyle: CSSProperties = useMemo(() => {
     let style: CSSProperties = {
-      padding: 20,
-      backgroundColor: selected === id ? '#2681ff' : '#22242b',
+      fontSize: 14,
+      width: '100%',
+      padding: `12px 16px 12px ${level > 1 ? level * 16 + 8 : 16}px`,
+      marginBottom: 4,
+      backgroundColor: selected?.includes(uniqueId) ? '#e0f0fa' : 'transparent',
       opacity: isDragging ? 0.4 : 1,
       cursor: 'grab',
       borderWidth: '2px',
       borderStyle: 'solid',
-      borderBottomColor: '#2a2c33',
-      borderTopColor: '#2a2c33',
-      borderLeftColor: '#2a2c33',
-      borderRightColor: '#2a2c33',
+      borderBottomColor: 'transparent',
+      borderTopColor: 'transparent',
+      borderLeftColor: 'transparent',
+      borderRightColor: 'transparent',
       transition: 'all .1s',
     }
     if (isActive) {
       if (position === 'up') {
         style = {
           ...style,
-          borderTopColor: '#2681ff',
+          borderTopColor: '#FF6666',
           borderBottomColor: 'transparent',
           borderLeftColor: 'transparent',
           borderRightColor: 'transparent',
@@ -255,7 +283,7 @@ const LayerItem: FC<{
       } else if (position === 'down') {
         style = {
           ...style,
-          borderBottomColor: '#2681ff',
+          borderBottomColor: '#FF6666',
           borderTopColor: 'transparent',
           borderLeftColor: 'transparent',
           borderRightColor: 'transparent',
@@ -263,51 +291,82 @@ const LayerItem: FC<{
       } else if (position === 'middle') {
         style = {
           ...style,
-          borderBottomColor: '#2681ff',
-          borderTopColor: '#2681ff',
-          borderLeftColor: '#2681ff',
-          borderRightColor: '#2681ff',
+          borderBottomColor: '#FF6666',
+          borderTopColor: '#FF6666',
+          borderLeftColor: '#FF6666',
+          borderRightColor: '#FF6666',
         }
       }
     }
 
     return style
-  }, [id, isActive, isDragging, position, selected])
+  }, [level, selected, uniqueId, isDragging, isActive, position])
 
   const handleClick = useCallback(
     e => {
       e.stopPropagation()
-      setDragSelected(dispatch, id)
+      if (controlled) setDragSelectedMultiple(dispatch, uniqueId)
+      else setDragSelected(dispatch, [uniqueId])
     },
-    [dispatch, id],
+    [controlled, dispatch, uniqueId],
   )
 
   return (
-    <div
-      ref={ref}
-      style={overwriteStyle}
-      onClick={handleClick}
-      className="layer-item"
-    >
-      {value.id}
-      <br />
-      <div>{children}</div>
+    <div ref={ref} onClick={handleClick} className="layer-item">
+      {type === 'group' ? (
+        <>
+          <Space style={{ ...overwriteStyle }} align="center">
+            <Button
+              size="small"
+              type="text"
+              icon={activeKey?.length ? <DownOutlined /> : <RightOutlined />}
+              onClick={onCollapseChange}
+              style={{ textAlign: 'left' }}
+            />
+            <Badge
+              size="small"
+              offset={[16, 0]}
+              count={(children as any[])?.length}
+            >
+              <Space>
+                <GroupOutlined />
+                {value.name}
+              </Space>
+            </Badge>
+          </Space>
+          {children && (
+            <Collapse ghost activeKey={activeKey}>
+              <Panel showArrow={false} header={null} key="1">
+                {children}
+              </Panel>
+            </Collapse>
+          )}
+        </>
+      ) : (
+        <div style={overwriteStyle}>{value.name}</div>
+      )}
     </div>
   )
 })
 
 const Layer = memo(() => {
-  const { widgets } = useDesigner()
+  const {
+    widgets,
+    addWidget,
+    separator,
+    onFlattenChange,
+    selected,
+  } = useDesigner()
 
   const createLayer = useCallback(() => {
-    const rec = (list: DragWidgetTypes[], parentId: string | number | null) => {
+    const rec = (list: DragWidgetTypes[], level: number) => {
       const d: any[] = []
       for (const k in list) {
         if (Object.prototype.hasOwnProperty.call(list, k)) {
           const item = list[k]
           d[k] = (
-            <LayerItem key={item.id} value={item}>
-              {item.children && rec(item.children, item.id)}
+            <LayerItem key={item.uniqueId} value={item} level={level}>
+              {item.children && rec(item.children, level + 1)}
             </LayerItem>
           )
         }
@@ -316,10 +375,67 @@ const Layer = memo(() => {
       return d
     }
 
-    return rec(widgets!, null)
+    return rec(widgets!, 1)
   }, [widgets])
 
-  return <DndProvider backend={HTML5Backend}>{createLayer()}</DndProvider>
+  const handleAddGroup = useCallback(() => {
+    const { newWidget, newFlatten } = addWidget({
+      name: '分组',
+      type: groupName,
+      position: {
+        width: 400,
+        height: 500,
+        left: 100,
+        top: 50,
+      },
+    })
+
+    const flatten = selected?.reduce((flatten, id) => {
+      const [newFlatten] = dropItem({
+        dragId: id,
+        dropId: newWidget?.uniqueId,
+        position: 'middle',
+        flatten,
+        separator,
+      })
+
+      return newFlatten
+    }, newFlatten)
+
+    onFlattenChange(flatten)
+  }, [addWidget, onFlattenChange, selected, separator])
+
+  return (
+    <Fragment>
+      <div
+        style={{
+          textAlign: 'center',
+          padding: 10,
+          backgroundColor: 'white',
+          marginBottom: 4,
+        }}
+      >
+        图层
+      </div>
+      <div
+        style={{
+          textAlign: 'center',
+          padding: 10,
+          backgroundColor: 'white',
+          marginBottom: 4,
+        }}
+      >
+        <Button
+          type="dashed"
+          icon={<GroupOutlined />}
+          onClick={handleAddGroup}
+        />
+      </div>
+      <div className="container">
+        <DndProvider backend={HTML5Backend}>{createLayer()}</DndProvider>
+      </div>
+    </Fragment>
+  )
 })
 
 export default Layer

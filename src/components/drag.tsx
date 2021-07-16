@@ -19,7 +19,7 @@ const timeDiff = 250
 
 const Drag: FC<DragProps> = memo(
   ({ value, onValueChange, scale, children }) => {
-    const { id, width, height, left, top, color, background } = useMemo(
+    const { uniqueId, width, height, left, top, color, background } = useMemo(
       () => ({
         ...value,
         ...value.position,
@@ -36,13 +36,14 @@ const Drag: FC<DragProps> = memo(
       shifted,
       clickTime,
     } = useDesigner()
+
     const hasSelected = useMemo(() => {
-      return selected === id
-    }, [id, selected])
+      return selected?.includes(uniqueId)
+    }, [selected, uniqueId])
 
     const hasHovered = useMemo(() => {
-      return hovered === id
-    }, [hovered, id])
+      return hovered === uniqueId
+    }, [hovered, uniqueId])
 
     const hasEditing = useMemo(() => {
       return hasSelected || hasHovered
@@ -78,45 +79,47 @@ const Drag: FC<DragProps> = memo(
     // TODO：BUG，双击后松开鼠标选中项变成顶级元素
     const handleSelect = useCallback(
       e => {
-        if (!id) return
+        if (!uniqueId) return
         const isMouseenter = e.type === 'mouseenter'
         if (Date.now() - clickTime <= timeDiff) {
           onStopPropagation(e)
         }
         if (dragging) return
-        if (isMouseenter) setDragHovered(dispatch, id)
-        else setDragSelected(dispatch, id)
+        if (isMouseenter) setDragHovered(dispatch, uniqueId)
+        else setDragSelected(dispatch, [uniqueId])
       },
-      [clickTime, dispatch, dragging, id, onStopPropagation],
+      [clickTime, dispatch, dragging, onStopPropagation, uniqueId],
     )
 
     const onDragStartHandle = useCallback(
       e => {
-        if (!id) return
+        if (!uniqueId) return
         onStopPropagation(e)
         handleSelect(e)
-        setDragSelected(dispatch, id)
+        setDragSelected(dispatch, [uniqueId])
         setDragDragging(dispatch, true)
       },
-      [dispatch, handleSelect, id, onStopPropagation],
+      [dispatch, handleSelect, onStopPropagation, uniqueId],
     )
 
     const onDragStopHandle = useCallback(
       (e, d) => {
-        if (!id) return
+        if (!uniqueId) return
         onStopPropagation(e)
-        onValueChange(id, {
-          left: Math.round(d.x),
-          top: Math.round(d.y),
+        onValueChange(uniqueId, {
+          position: {
+            left: Math.round(d.x),
+            top: Math.round(d.y),
+          },
         })
         setDragDragging(dispatch, false)
       },
-      [onStopPropagation, onValueChange, id, dispatch],
+      [uniqueId, onStopPropagation, onValueChange, dispatch],
     )
 
     const onResizeStopHandle = useCallback(
       (e, dir, ref, delta) => {
-        if (!id) return
+        if (!uniqueId) return
         onStopPropagation(e)
         let w, h
         if (String(width).includes('%')) {
@@ -135,18 +138,20 @@ const Drag: FC<DragProps> = memo(
           h = Math.ceil(delta.height + height)
         }
 
-        onValueChange(id, {
-          width: w,
-          height: h,
+        onValueChange(uniqueId, {
+          position: {
+            width: w,
+            height: h,
+          },
         })
       },
       [
         height,
-        id,
         onStopPropagation,
         onValueChange,
         pageInfo.height,
         pageInfo.width,
+        uniqueId,
         width,
       ],
     )

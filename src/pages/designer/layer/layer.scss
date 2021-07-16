@@ -1,5 +1,19 @@
-//.layer {
-//  .layer-item {
-//    background-color: #22242b;
-//  }
-//}
+@import '../../../assets/styles/mixin';
+
+.layer {
+  .container {
+    overflow-y: auto;
+    @include scrollbar();
+
+    .ant-collapse-header{
+      padding: 0;
+    }
+
+    .ant-collapse-content-box{
+      padding-top: 0!important;
+      padding-bottom: 0!important;
+      padding-right: 0;;
+      padding-left: 0;
+    }
+  }
+}

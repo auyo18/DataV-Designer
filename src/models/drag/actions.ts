@@ -51,12 +51,29 @@ export function setDragSelected(
   })
 }
 
+export function setDragSelectedMultiple(dispatch: Dispatch, payload: string) {
+  return dispatch({
+    type: 'drag/SET_SELECTED_MULTIPLE',
+    payload,
+  })
+}
+
 export function setDragShifted(
   dispatch: Dispatch,
   payload: DragModelState['shifted'],
 ) {
   return dispatch({
     type: 'drag/SET_SHIFTED',
+    payload,
+  })
+}
+
+export function setDragControlled(
+  dispatch: Dispatch,
+  payload: DragModelState['controlled'],
+) {
+  return dispatch({
+    type: 'drag/SET_CONTROLLED',
     payload,
   })
 }

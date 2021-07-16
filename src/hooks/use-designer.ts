@@ -1,11 +1,16 @@
 import { useSelector } from '@/hooks/index'
 import { useCallback, useMemo } from 'react'
-import { setDragFlatten, setDragWidgets } from '@/models/drag/actions'
+import {
+  setDragFlatten,
+  setDragSelected,
+  setDragWidgets,
+} from '@/models/drag/actions'
+import { v4 as uuidV4 } from 'uuid'
 import { useDispatch } from 'umi'
 import { DragWidgetTypes } from '@/types'
 import { DragModelState } from '@/models/drag/model'
 
-const separator = '-'
+const separator = '/'
 
 const useDesigner = () => {
   const dispatch = useDispatch()
@@ -14,7 +19,9 @@ const useDesigner = () => {
   )
 
   const currentWidget = useMemo(() => {
-    return selected && flatten?.[selected]?.widget
+    return selected && selected.length === 1
+      ? flatten?.[selected[0]]?.widget
+      : undefined
   }, [flatten, selected])
 
   const flattenWidgets = useCallback(
@@ -32,11 +39,10 @@ const useDesigner = () => {
       for (const k in widgets) {
         if (Object.prototype.hasOwnProperty.call(widgets, k)) {
           const _widget = widgets[k]
-          _widget.id = String(_widget.id)
-          children.push(_widget.id)
+          children.push(_widget.uniqueId)
           flattenWidgets(
             _widget,
-            String(_widget.id),
+            _widget.uniqueId,
             (parent ? parent + separator : '') + name,
             result,
             totalX + _widget.position.left,
@@ -52,7 +58,6 @@ const useDesigner = () => {
         totalX,
         totalY,
       }
-
       return result
     },
     [],
@@ -60,7 +65,7 @@ const useDesigner = () => {
 
   // TODO:优化，找到当前更改的组件后就可以退出递归，只更新所在路径的数据
   const onWidgetChange = useCallback(
-    (id, value) => {
+    (uniqueId, value) => {
       if (!widgets) return
 
       const rec = (list: DragWidgetTypes[]) => {
@@ -68,12 +73,13 @@ const useDesigner = () => {
 
         for (const k in list) {
           const t = { ...list[k] }
-          if (t.id === id) {
+          if (t.uniqueId === uniqueId) {
             temp[k] = {
               ...t,
+              ...value,
               position: {
                 ...t.position,
-                ...value,
+                ...value.position,
               },
             }
           } else {
@@ -123,6 +129,32 @@ const useDesigner = () => {
     [dispatch],
   )
 
+  const addWidget = useCallback(
+    widget => {
+      const _widgets = widgets ? [...widgets] : [],
+        uniqueId = uuidV4(),
+        newWidget = {
+          ...widget,
+          uniqueId,
+          position: {
+            ...widget.position,
+            left: widget.position.left || 0,
+            top: widget.position.top || 0,
+          },
+        }
+
+      _widgets?.unshift(newWidget)
+      const newFlatten = flattenWidgets({ children: _widgets })
+
+      onFlattenChange(newFlatten)
+
+      setDragSelected(dispatch, [uniqueId])
+
+      return { newWidget, newFlatten, newWidgets: _widgets }
+    },
+    [dispatch, flattenWidgets, onFlattenChange, widgets],
+  )
+
   return {
     separator,
     widgets,
@@ -134,6 +166,7 @@ const useDesigner = () => {
     onWidgetChange,
     onFlattenChange,
     flattenWidgets,
+    addWidget,
   }
 }
 

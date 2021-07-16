@@ -38,11 +38,13 @@
     "react-dnd-html5-backend": "^14.0.0",
     "react-dom": "17.x",
     "react-rnd": "^10.3.4",
-    "umi": "^3.5.8"
+    "umi": "^3.5.8",
+    "uuid": "^8.3.2"
   },
   "devDependencies": {
     "@types/react": "^17.0.0",
     "@types/react-dom": "^17.0.0",
+    "@types/uuid": "^8.3.1",
     "@typescript-eslint/eslint-plugin": "^4.28.3",
     "@typescript-eslint/parser": "^4.28.3",
     "@umijs/plugin-sass": "^1.1.1",

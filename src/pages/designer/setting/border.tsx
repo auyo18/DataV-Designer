@@ -10,10 +10,11 @@ const Border = memo(() => {
   return (
     <Collapse bordered={false} defaultActiveKey={['basic']}>
       <Panel header="基本属性" key="basic">
+        <ProFormText name="name" label="标题" />
         <ProForm.Group size="small" title="位置尺寸">
           <ProFormText
             width={150}
-            name="width"
+            name={['position', 'width']}
             placeholder="宽度"
             allowClear={false}
             rules={[
@@ -28,7 +29,7 @@ const Border = memo(() => {
           />
           <ProFormText
             width={150}
-            name="height"
+            name={['position', 'height']}
             placeholder="高度"
             allowClear={false}
             rules={[
