@@ -28,8 +28,14 @@ const Drag: FC<DragProps> = memo(
     )
 
     const dispatch = useDispatch()
-    const { pageInfo, dragging, selected, hovered, shifted, clickTime } =
-      useDesigner()
+    const {
+      pageInfo,
+      dragging,
+      selected,
+      hovered,
+      shifted,
+      clickTime,
+    } = useDesigner()
     const hasSelected = useMemo(() => {
       return selected === id
     }, [id, selected])
@@ -57,6 +63,7 @@ const Drag: FC<DragProps> = memo(
         cursor: hasEditing ? 'move' : 'pointer',
         transition: 'border-color .2s',
         background: background || '#282842b3',
+        zIndex: hasEditing ? 999 : 0,
       }),
       [background, color, hasEditing],
     )

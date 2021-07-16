@@ -5,6 +5,8 @@ import { useDispatch } from 'umi'
 import { DragWidgetTypes } from '@/types'
 import { DragModelState } from '@/models/drag/model'
 
+const separator = '-'
+
 const useDesigner = () => {
   const dispatch = useDispatch()
   const { widgets, dragging, selected, flatten, ...rest } = useSelector(
@@ -18,7 +20,7 @@ const useDesigner = () => {
   const flattenWidgets = useCallback(
     (
       widget,
-      name = '#',
+      name = '0',
       parent?,
       result = {},
       totalX: number = 0,
@@ -31,12 +33,11 @@ const useDesigner = () => {
         if (Object.prototype.hasOwnProperty.call(widgets, k)) {
           const _widget = widgets[k]
           _widget.id = String(_widget.id)
-          console.log(_widget, _widget.position.x, '_widget.position.x')
           children.push(_widget.id)
           flattenWidgets(
             _widget,
             String(_widget.id),
-            (parent ? parent + '/' : '') + name,
+            (parent ? parent + separator : '') + name,
             result,
             totalX + _widget.position.left,
             totalY + _widget.position.top,
@@ -51,7 +52,7 @@ const useDesigner = () => {
         totalX,
         totalY,
       }
-      console.log(result)
+
       return result
     },
     [],
@@ -98,7 +99,6 @@ const useDesigner = () => {
 
   const onFlattenChange = useCallback(
     (newFlatten: DragModelState['flatten']) => {
-      console.log(newFlatten, 'newFlatten')
       const rec = (flatten?: {
         parent: string
         children: string[]
@@ -118,12 +118,13 @@ const useDesigner = () => {
 
       setDragFlatten(dispatch, newFlatten)
 
-      setDragWidgets(dispatch, rec(newFlatten?.['#']))
+      setDragWidgets(dispatch, rec(newFlatten?.['0']))
     },
     [dispatch],
   )
 
   return {
+    separator,
     widgets,
     currentWidget,
     dragging,

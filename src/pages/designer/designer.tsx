@@ -10,7 +10,7 @@ import {
 } from '@/models/drag/actions'
 import { useDispatch } from 'umi'
 import { Row, Col } from 'antd'
-import Layer from './layer'
+import Layer from './layer/layer'
 import Setting from './setting'
 import { useDebounce, useDesigner } from '@/hooks'
 import './designer.scss'
@@ -109,7 +109,11 @@ export default function Designer() {
     [onWidgetChange],
   )
 
-  const handleClick = useCallback(
+  const handleLayerClick = useCallback(() => {
+    setDragSelected(dispatch, undefined)
+  }, [dispatch])
+
+  const handleScreenClick = useCallback(
     e => {
       const className = e.target.className
       if (className.includes('screen') || className.includes('container')) {
@@ -188,10 +192,14 @@ export default function Designer() {
 
   return (
     <Row className="designer">
-      <Col className="left" style={{ width: leftWidth }}>
+      <Col
+        className="layer"
+        style={{ width: leftWidth }}
+        onClick={handleLayerClick}
+      >
         <Layer />
       </Col>
-      <Col className="screen" onClick={handleClick}>
+      <Col className="screen" onClick={handleScreenClick}>
         <div className="container" style={screenContainerStyles}>
           {createDrag()}
         </div>
