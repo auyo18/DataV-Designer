@@ -79,13 +79,14 @@ const DragModel: DragModelType = {
     SET_SELECTED: (state, { payload }) => {
       const selected = state?.selected
       if (
-        selected?.length === payload?.length &&
-        selected?.[0] === payload?.[0]
+        selected === payload ||
+        (selected?.length === payload?.length && selected?.[0] === payload?.[0])
       )
         return state!
 
       return Object.assign({}, state, {
         selected: payload,
+        hovered: undefined,
       })
     },
     SET_SELECTED_MULTIPLE: (state, { payload }) => {
@@ -124,6 +125,8 @@ const DragModel: DragModelType = {
       })
     },
     SET_CLICK_TIME: (state, { payload }) => {
+      if (state?.clickTime === payload) return state!
+
       return Object.assign({}, state, {
         clickTime: payload,
       })

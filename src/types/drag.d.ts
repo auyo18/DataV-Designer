@@ -3,9 +3,10 @@ export interface DragWidgetTypes {
   uniqueId: string
   name: string
   type: string
+  hasParent?: boolean
   position: {
-    width: number | string
-    height: number | string
+    width: number
+    height: number
     left: number
     top: number
   }

@@ -9,6 +9,7 @@ import { v4 as uuidV4 } from 'uuid'
 import { useDispatch } from 'umi'
 import { DragWidgetTypes } from '@/types'
 import { DragModelState } from '@/models/drag/model'
+import { flattenTopName } from '@/constants'
 
 const separator = '/'
 
@@ -27,7 +28,7 @@ const useDesigner = () => {
   const flattenWidgets = useCallback(
     (
       widget,
-      name = '0',
+      name = flattenTopName,
       parent?,
       result = {},
       totalX: number = 0,
@@ -63,73 +64,133 @@ const useDesigner = () => {
     [],
   )
 
+  const onFlattenChange = useCallback(
+    (newFlatten: DragModelState['flatten']) => {
+      const rec = (
+        ids?: string[],
+        x: number = Infinity,
+        y: number = Infinity,
+        w: number = -Infinity,
+        h: number = -Infinity,
+      ) => {
+        if (!ids) return {}
+
+        let widgets: DragWidgetTypes[] = [],
+          top = y,
+          left = x,
+          right = w,
+          bottom = h
+
+        ids?.forEach(id => {
+          const {
+              widgets: children,
+              top: _top,
+              left: _left,
+              right: _right,
+              bottom: _bottom,
+            } = rec(newFlatten?.[id].children, x, y, w, h),
+            newWidget = newFlatten?.[id].widget,
+            position = newWidget?.position
+
+          if (newWidget && position) {
+            top = Math.min(top, position?.top)
+            left = Math.min(left, position?.left)
+            right = Math.max(right, position?.width + position?.left)
+            bottom = Math.max(bottom, position?.height + position?.top)
+
+            widgets.push({
+              ...newWidget,
+              position: {
+                ...position,
+                top: _top != null && _top !== Infinity ? _top : position.top,
+                left:
+                  _left != null && _left !== Infinity ? _left : position.left,
+                width:
+                  _right != null && _left != null && _right !== -Infinity
+                    ? _right - _left
+                    : position.width,
+                height:
+                  _bottom != null && _top != null && _bottom !== -Infinity
+                    ? _bottom - _top
+                    : position.height,
+              },
+              children,
+            })
+          }
+        })
+
+        return { widgets, top, left, right, bottom }
+      }
+
+      setDragFlatten(dispatch, newFlatten)
+      setDragWidgets(
+        dispatch,
+        rec(newFlatten?.[flattenTopName].children)?.widgets,
+      )
+    },
+    [dispatch],
+  )
+
   // TODO:优化，找到当前更改的组件后就可以退出递归，只更新所在路径的数据
   const onWidgetChange = useCallback(
-    (uniqueId, value) => {
+    (uniqueId: string | true, value?: any, _widgets = widgets) => {
+      const widgets = _widgets
       if (!widgets) return
-
-      const rec = (list: DragWidgetTypes[]) => {
-        const temp: DragWidgetTypes[] = []
+      const rec = (
+        list: DragWidgetTypes[],
+        diffX: number = 0,
+        diffY: number = 0,
+        hasParent: boolean = false,
+      ) => {
+        let temp: DragWidgetTypes[] = []
 
         for (const k in list) {
-          const t = { ...list[k] }
-          if (t.uniqueId === uniqueId) {
+          let t = { ...list[k], hasParent },
+            _diffX = 0,
+            _diffY = 0
+          if (typeof uniqueId === 'boolean' || t.uniqueId === uniqueId) {
+            if (t.uniqueId === uniqueId) {
+              _diffX = t.position.left - value.position.left
+              _diffY = t.position.top - value.position.top
+            }
+
             temp[k] = {
               ...t,
               ...value,
               position: {
                 ...t.position,
-                ...value.position,
+                ...value?.position,
               },
             }
           } else {
-            temp[k] = t
+            temp[k] = {
+              ...t,
+              position: {
+                ...t.position,
+                left: t.position.left - diffX,
+                top: t.position.top - diffY,
+              },
+            }
           }
 
-          if (t.children) {
-            t.children = rec(t.children)
+          if (temp[k].children) {
+            temp[k].children = rec(
+              temp[k].children!,
+              _diffX + diffX,
+              _diffY + diffY,
+              true,
+            )
           }
         }
-
         return temp
       }
 
-      const _widgets = rec(widgets)
-
-      setDragFlatten(dispatch, flattenWidgets({ children: _widgets }))
-
-      setDragWidgets(dispatch, rec(_widgets))
+      onFlattenChange(flattenWidgets({ children: rec(widgets) }))
     },
-    [dispatch, flattenWidgets, widgets],
+    [flattenWidgets, onFlattenChange, widgets],
   )
 
-  const onFlattenChange = useCallback(
-    (newFlatten: DragModelState['flatten']) => {
-      const rec = (flatten?: {
-        parent: string
-        children: string[]
-        widget: DragWidgetTypes
-      }) => {
-        let _widgets: DragWidgetTypes[] = []
-        flatten?.children?.forEach(id => {
-          const children = rec(newFlatten?.[id])
-
-          if (newFlatten?.[id].widget) {
-            _widgets.push({ ...newFlatten[id].widget, children })
-          }
-        })
-
-        return _widgets
-      }
-
-      setDragFlatten(dispatch, newFlatten)
-
-      setDragWidgets(dispatch, rec(newFlatten?.['0']))
-    },
-    [dispatch],
-  )
-
-  const addWidget = useCallback(
+  const handleAddWidget = useCallback(
     widget => {
       const _widgets = widgets ? [...widgets] : [],
         uniqueId = uuidV4(),
@@ -144,29 +205,38 @@ const useDesigner = () => {
         }
 
       _widgets?.unshift(newWidget)
+
       const newFlatten = flattenWidgets({ children: _widgets })
-
-      onFlattenChange(newFlatten)
-
-      setDragSelected(dispatch, [uniqueId])
 
       return { newWidget, newFlatten, newWidgets: _widgets }
     },
-    [dispatch, flattenWidgets, onFlattenChange, widgets],
+    [flattenWidgets, widgets],
+  )
+
+  const addWidget = useCallback(
+    widget => {
+      const { newWidget, newFlatten } = handleAddWidget(widget)
+
+      onFlattenChange(newFlatten)
+
+      setDragSelected(dispatch, [newWidget.uniqueId])
+    },
+    [dispatch, handleAddWidget, onFlattenChange],
   )
 
   return {
+    ...rest,
     separator,
     widgets,
     currentWidget,
     dragging,
     selected,
     flatten,
-    ...rest,
     onWidgetChange,
     onFlattenChange,
     flattenWidgets,
     addWidget,
+    handleAddWidget,
   }
 }
 

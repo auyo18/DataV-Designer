@@ -25,32 +25,48 @@ const shiftKeyName = 'Shift',
   _widgets: DragWidgetTypes[] = [
     {
       id: 1,
-      uniqueId: '123123-123123qwerdf-xqw3wetr',
-      name: '边框',
-      type: 'border',
+      uniqueId: 'group-123123-5464654-xqw3wetr',
+      name: '分组',
+      type: 'group',
       position: {
-        width: 400,
-        height: 500,
-        left: 100,
-        top: 50,
+        width: 1100,
+        height: 740,
+        left: 599,
+        top: 149,
       },
-    },
-    {
-      id: 2,
-      uniqueId: '123-123123qwzxvczxercvzxdf-xqw3wetr',
-      name: '面积图',
-      type: 'border',
-      position: {
-        width: 400,
-        height: 250,
-        left: 700,
-        top: 160,
-      },
+      children: [
+        {
+          id: 5,
+          uniqueId: 'border-123123-123123qwerdf-xqw3wetr',
+          name: '边框',
+          type: 'border',
+          position: {
+            width: 400,
+            height: 500,
+            left: 599,
+            top: 389,
+          },
+          children: [],
+        },
+        {
+          id: 6,
+          uniqueId: 'area1-123-123123qwzxvczxercvzxdf-xqw3wetr',
+          name: '面积图1',
+          type: 'border',
+          position: {
+            width: 400,
+            height: 250,
+            left: 1299,
+            top: 149,
+          },
+          children: [],
+        },
+      ],
     },
     {
       id: 3,
-      uniqueId: 'sdf124-123123qwerdf-xqw3wetr',
-      name: '面积图',
+      uniqueId: 'area2-sdf124-123123qwerdf-xqw3wetr',
+      name: '面积图2',
       type: 'border',
       position: {
         width: 400,
@@ -58,18 +74,20 @@ const shiftKeyName = 'Shift',
         left: 100,
         top: 60,
       },
+      children: [],
     },
     {
       id: 4,
-      uniqueId: '123123-ewrwr-xqw3wetr',
+      uniqueId: 'text-123123-ewrwr-xqw3wetr',
       name: '文字',
       type: 'border',
       position: {
         width: 50,
         height: 100,
         left: 200,
-        top: 100,
+        top: 400,
       },
+      children: [],
     },
   ]
 
@@ -126,8 +144,9 @@ export default function Designer() {
       if (className.includes('screen') || className.includes('container')) {
         // 点击外部清空选中组件
         setDragSelected(dispatch, undefined)
+      } else {
+        setDragClickTime(dispatch, Date.now())
       }
-      setDragClickTime(dispatch, Date.now())
     },
     [dispatch],
   )
@@ -195,7 +214,7 @@ export default function Designer() {
   }, [onHandleBlur, onKeydownHandle, onKeyupHandle, onResizeHandle])
 
   const createDrag = useCallback(() => {
-    const rec = (list: DragWidgetTypes[]) => {
+    const rec = (list: DragWidgetTypes[], totalX: number, totalY: number) => {
       if (!list) return
 
       const d: any[] = []
@@ -208,15 +227,20 @@ export default function Designer() {
             onValueChange={onValueChange}
             scale={scale}
           >
-            <div>{item.name}</div>
-            {item.children && rec(item.children)}
+            {item.type !== 'group' && <div>{item.name}</div>}
+            {item.children &&
+              rec(
+                item.children,
+                totalX + item.position.left,
+                totalY + item.position.top,
+              )}
           </Drag>
         )
       }
       return d
     }
 
-    return rec(widgets!)
+    return rec(widgets!, 0, 0)
   }, [onValueChange, scale, widgets])
 
   useEffect(() => {

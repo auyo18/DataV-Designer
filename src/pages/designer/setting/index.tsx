@@ -34,7 +34,7 @@ const Setting = memo(() => {
         return {
           content: <Border />,
           onValuesChange(values: any) {
-            onWidgetChange(selected, values)
+            onWidgetChange(selected?.[0]!, values)
           },
         }
       default:

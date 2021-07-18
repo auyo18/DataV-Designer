@@ -16,8 +16,14 @@ import { DropTargetMonitor } from 'react-dnd/dist/types/types'
 import { setDragSelectedMultiple, setDragSelected } from '@/models/drag/actions'
 import { useDispatch } from 'umi'
 import { Button, Collapse, Space, Badge } from 'antd'
-import { GroupOutlined, RightOutlined, DownOutlined } from '@ant-design/icons'
+import {
+  GroupOutlined,
+  RightOutlined,
+  DownOutlined,
+  PictureOutlined,
+} from '@ant-design/icons'
 import './layer.scss'
+import { flattenTopName } from '@/constants'
 
 type DragObject = {
   uniqueId: string
@@ -56,7 +62,7 @@ const groupName = 'group',
 
     let newId = dragId
     try {
-      const newParentId = dropParent?.uniqueId || '0'
+      const newParentId = dropParent?.uniqueId || flattenTopName
       newId = newId.replace(_dragItem.parent, newParentId)
     } catch (error) {
       console.error(error)
@@ -82,20 +88,10 @@ const groupName = 'group',
         case 'up':
           newChildren.splice(idx, 0, dragId)
           _dragItem.parent = dropItem.parent
-          _dragItem.widget.position = {
-            ..._dragItem.widget.position,
-            left: _dragItem.totalX - dropParent.totalX,
-            top: _dragItem.totalY - dropParent.totalY,
-          }
           break
         case 'down':
           newChildren.splice(idx + 1, 0, dragId)
           _dragItem.parent = dropItem.parent
-          _dragItem.widget.position = {
-            ..._dragItem.widget.position,
-            left: _dragItem.totalX - dropParent.totalX,
-            top: _dragItem.totalY - dropParent.totalY,
-          }
           break
         case 'middle':
           if (!dropItem.children) {
@@ -103,11 +99,6 @@ const groupName = 'group',
           }
           _dragItem.parent = dropItem.parent + separator + dropId
           dropItem.children.unshift(dragId)
-          _dragItem.widget.position = {
-            ..._dragItem.widget.position,
-            left: _dragItem.totalX - dropItem.totalX,
-            top: _dragItem.totalY - dropItem.totalY,
-          }
           _dragItem.children?.forEach((id: string) => {
             const item = newFlatten[id]
             item.parent =
@@ -132,7 +123,8 @@ const LayerItem: FC<{
 
   const [activeKey, setActiveKey] = useState<string[]>()
 
-  const onCollapseChange = useCallback(() => {
+  const onCollapseChange = useCallback(e => {
+    e.stopPropagation()
     setActiveKey(key => {
       return key?.length ? [] : ['1']
     })
@@ -141,13 +133,8 @@ const LayerItem: FC<{
   const ref = useRef<HTMLDivElement>(null)
   const [position, setPosition] = useState<'up' | 'middle' | 'down'>()
 
-  const {
-    flatten,
-    selected,
-    controlled,
-    separator,
-    onFlattenChange,
-  } = useDesigner()
+  const { flatten, selected, controlled, separator, onFlattenChange } =
+    useDesigner()
 
   const { uniqueId, type } = value,
     item = useMemo(
@@ -168,74 +155,70 @@ const LayerItem: FC<{
     [item],
   )
 
-  const drop: (
-    item: DragObject,
-    monitor: DropTargetMonitor,
-  ) => void = useCallback(
-    (item: DragObject, monitor) => {
-      // 如果 children 已经作为了 drop target，不处理
-      const didDrop = monitor.didDrop()
-      if (didDrop) {
-        return
-      }
-
-      const [newFlatten, newId] = dropItem({
-        dragId: item.uniqueId, // 内部拖拽用dragId
-        dropId: uniqueId,
-        position,
-        flatten,
-        separator,
-      })
-      newFlatten && onFlattenChange(newFlatten)
-      newId && setDragSelected(dispatch, [newId])
-    },
-    [dispatch, flatten, onFlattenChange, position, separator, uniqueId],
-  )
-
-  const hover: (
-    item: DragObject,
-    monitor: DropTargetMonitor,
-  ) => void = useCallback(
-    (item: DragObject, monitor) => {
-      const dragId = item.uniqueId
-
-      // 拖拽元素下标与鼠标悬浮元素下标一致或拖拽元素包含鼠标悬浮元素时，不进行操作
-      if (
-        dragId === uniqueId ||
-        flatten?.[uniqueId].parent.split(separator).includes(dragId)
-      ) {
-        setPosition(undefined)
-        return
-      }
-
-      const didHover = monitor.isOver({ shallow: true })
-      if (didHover) {
-        const hoverBoundingRect =
-          ref.current && ref.current.getBoundingClientRect()
-
-        const hoverHeight = hoverBoundingRect?.height || 0
-        const dragOffset = monitor.getClientOffset()
-        const hoverClientY =
-          (dragOffset?.y || 0) - (hoverBoundingRect?.top || 0)
-
-        const topBoundary = Math.min(hoverHeight / 3, 60),
-          bottomBoundary = Math.max(hoverHeight / 1.5, hoverHeight - 60)
-
-        let position: any
-        if (hoverClientY < topBoundary) {
-          position = 'up'
-          setPosition('up')
-        } else if (hoverClientY <= bottomBoundary && type === groupName) {
-          position = 'middle'
-          setPosition('middle')
-        } else if (hoverClientY > bottomBoundary) {
-          position = 'down'
-          setPosition('down')
+  const drop: (item: DragObject, monitor: DropTargetMonitor) => void =
+    useCallback(
+      (item: DragObject, monitor) => {
+        // 如果 children 已经作为了 drop target，不处理
+        const didDrop = monitor.didDrop()
+        if (didDrop) {
+          return
         }
-      }
-    },
-    [uniqueId, flatten, separator, type],
-  )
+
+        const [newFlatten, newId] = dropItem({
+          dragId: item.uniqueId, // 内部拖拽用dragId
+          dropId: uniqueId,
+          position,
+          flatten,
+          separator,
+        })
+        newFlatten && onFlattenChange(newFlatten)
+        newId && setDragSelected(dispatch, [newId])
+      },
+      [dispatch, flatten, onFlattenChange, position, separator, uniqueId],
+    )
+
+  const hover: (item: DragObject, monitor: DropTargetMonitor) => void =
+    useCallback(
+      (item: DragObject, monitor) => {
+        const dragId = item.uniqueId
+
+        // 拖拽元素下标与鼠标悬浮元素下标一致或拖拽元素包含鼠标悬浮元素时，不进行操作
+        if (
+          dragId === uniqueId ||
+          flatten?.[uniqueId].parent.split(separator).includes(dragId)
+        ) {
+          setPosition(undefined)
+          return
+        }
+
+        const didHover = monitor.isOver({ shallow: true })
+        if (didHover) {
+          const hoverBoundingRect =
+            ref.current && ref.current.getBoundingClientRect()
+
+          const hoverHeight = hoverBoundingRect?.height || 0
+          const dragOffset = monitor.getClientOffset()
+          const hoverClientY =
+            (dragOffset?.y || 0) - (hoverBoundingRect?.top || 0)
+
+          const topBoundary = Math.min(hoverHeight / 3, 60),
+            bottomBoundary = Math.max(hoverHeight / 1.5, hoverHeight - 60)
+
+          // let position: any
+          if (hoverClientY < topBoundary) {
+            // position = 'up'
+            setPosition('up')
+          } else if (hoverClientY <= bottomBoundary && type === groupName) {
+            // position = 'middle'
+            setPosition('middle')
+          } else if (hoverClientY > bottomBoundary) {
+            // position = 'down'
+            setPosition('down')
+          }
+        }
+      },
+      [uniqueId, flatten, separator, type],
+    )
 
   const [{ canDrop, isOver }, dropRef] = useDrop(
     () => ({
@@ -259,8 +242,7 @@ const LayerItem: FC<{
       fontSize: 14,
       width: '100%',
       padding: `12px 16px 12px ${level > 1 ? level * 16 + 8 : 16}px`,
-      marginBottom: 4,
-      backgroundColor: selected?.includes(uniqueId) ? '#e0f0fa' : 'transparent',
+      backgroundColor: selected?.includes(uniqueId) ? '#d0e2ff' : 'transparent',
       opacity: isDragging ? 0.4 : 1,
       cursor: 'grab',
       borderWidth: '2px',
@@ -321,7 +303,6 @@ const LayerItem: FC<{
               type="text"
               icon={activeKey?.length ? <DownOutlined /> : <RightOutlined />}
               onClick={onCollapseChange}
-              style={{ textAlign: 'left' }}
             />
             <Badge
               size="small"
@@ -343,20 +324,19 @@ const LayerItem: FC<{
           )}
         </>
       ) : (
-        <div style={overwriteStyle}>{value.name}</div>
+        <Space style={overwriteStyle}>
+          <PictureOutlined />
+          {value.name}
+        </Space>
       )}
     </div>
   )
 })
 
 const Layer = memo(() => {
-  const {
-    widgets,
-    addWidget,
-    separator,
-    onFlattenChange,
-    selected,
-  } = useDesigner()
+  const dispatch = useDispatch()
+  const { widgets, handleAddWidget, separator, onFlattenChange, selected } =
+    useDesigner()
 
   const createLayer = useCallback(() => {
     const rec = (list: DragWidgetTypes[], level: number) => {
@@ -378,32 +358,37 @@ const Layer = memo(() => {
     return rec(widgets!, 1)
   }, [widgets])
 
-  const handleAddGroup = useCallback(() => {
-    const { newWidget, newFlatten } = addWidget({
-      name: '分组',
-      type: groupName,
-      position: {
-        width: 400,
-        height: 500,
-        left: 100,
-        top: 50,
-      },
-    })
-
-    const flatten = selected?.reduce((flatten, id) => {
-      const [newFlatten] = dropItem({
-        dragId: id,
-        dropId: newWidget?.uniqueId,
-        position: 'middle',
-        flatten,
-        separator,
+  const handleAddGroup = useCallback(
+    e => {
+      e.stopPropagation()
+      const { newWidget, newFlatten } = handleAddWidget({
+        name: '分组',
+        type: groupName,
+        position: {
+          width: 0,
+          height: 0,
+          left: 100,
+          top: 50,
+        },
       })
 
-      return newFlatten
-    }, newFlatten)
+      const flatten = selected?.reduce((flatten, id) => {
+        const [newFlatten] = dropItem({
+          dragId: id,
+          dropId: newWidget?.uniqueId,
+          position: 'middle',
+          flatten,
+          separator,
+        })
 
-    onFlattenChange(flatten)
-  }, [addWidget, onFlattenChange, selected, separator])
+        return newFlatten
+      }, newFlatten)
+
+      flatten && onFlattenChange(flatten)
+      setDragSelected(dispatch, [newWidget.uniqueId])
+    },
+    [dispatch, handleAddWidget, onFlattenChange, selected, separator],
+  )
 
   return (
     <Fragment>
@@ -412,26 +397,41 @@ const Layer = memo(() => {
           textAlign: 'center',
           padding: 10,
           backgroundColor: 'white',
-          marginBottom: 4,
+          marginBottom: 3,
         }}
       >
         图层
       </div>
-      <div
+      <Space
         style={{
           textAlign: 'center',
           padding: 10,
           backgroundColor: 'white',
-          marginBottom: 4,
+          marginBottom: 3,
+          width: '100%',
+          justifyContent: 'center',
         }}
       >
         <Button
-          type="dashed"
+          size="small"
+          type="text"
           icon={<GroupOutlined />}
           onClick={handleAddGroup}
         />
-      </div>
-      <div className="container">
+        <Button
+          size="small"
+          type="text"
+          icon={<GroupOutlined />}
+          onClick={handleAddGroup}
+        />
+        <Button
+          size="small"
+          type="text"
+          icon={<GroupOutlined />}
+          onClick={handleAddGroup}
+        />
+      </Space>
+      <div className="container" style={{ backgroundColor: 'white' }}>
         <DndProvider backend={HTML5Backend}>{createLayer()}</DndProvider>
       </div>
     </Fragment>
