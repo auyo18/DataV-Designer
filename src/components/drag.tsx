@@ -13,12 +13,13 @@ interface DragProps {
   value: DragWidgetTypes
   onValueChange: (id: number | string, data: any) => any
   scale: number
+  level: number
 }
 
 const timeDiff = 250
 
 const Drag: FC<DragProps> = memo(
-  ({ value, onValueChange, scale, children }) => {
+  ({ value, onValueChange, scale, level, children }) => {
     const {
       uniqueId,
       width,
@@ -51,7 +52,7 @@ const Drag: FC<DragProps> = memo(
     } = useDesigner()
 
     // TODO: 判断当前组内是否组项选中，和是否子项选中，选中相同组员，拖动其他组员，高亮没有取消
-    const { isSelected, isGroupSelected, isNotGroupSelected } = useMemo(() => {
+    const { isSelected } = useMemo(() => {
       // 当前分组任一项是否选择
       const isSelected =
         // 当前项
@@ -66,42 +67,10 @@ const Drag: FC<DragProps> = memo(
           )
         })
 
-      // 当前分组组项是否选择
-      const isGroupSelected =
-          (isGroup && selected?.includes(uniqueId)) ||
-          selected?.some(id => {
-            const parents = flatten?.[uniqueId].parent.split(separator),
-              item =
-                parents?.[parents.length - 1] &&
-                flatten?.[parents?.[parents.length - 1]]
-            return (
-              // 当前项父级
-              item &&
-              item.widget.type === separator &&
-              item.widget.uniqueId === id
-            )
-          }),
-        isNotGroupSelected =
-          (!isGroup && selected?.includes(uniqueId)) ||
-          selected?.some(id => {
-            const parents = flatten?.[uniqueId].parent.split(separator),
-              item =
-                parents?.[parents.length - 1] &&
-                flatten?.[parents?.[parents.length - 1]]
-            return (
-              // 当前项父级
-              item &&
-              item.widget.type !== separator &&
-              item.widget.uniqueId === id
-            )
-          })
-
       return {
         isSelected,
-        isGroupSelected,
-        isNotGroupSelected,
       }
-    }, [flatten, isGroup, selected, separator, uniqueId])
+    }, [flatten, selected, separator, uniqueId])
 
     const hasSelected = useMemo(() => {
       return selected?.includes(uniqueId)
@@ -144,18 +113,9 @@ const Drag: FC<DragProps> = memo(
           onStopPropagation(e)
         }
 
-        if (!hasParent || (hasParent && isNotGroupSelected)) {
-          setDragSelected(dispatch, [uniqueId])
-        }
+        setDragSelected(dispatch, [uniqueId])
       },
-      [
-        clickTime,
-        dispatch,
-        hasParent,
-        isNotGroupSelected,
-        onStopPropagation,
-        uniqueId,
-      ],
+      [clickTime, dispatch, onStopPropagation, uniqueId],
     )
 
     const hoverSelect = useCallback(

@@ -214,7 +214,7 @@ export default function Designer() {
   }, [onHandleBlur, onKeydownHandle, onKeyupHandle, onResizeHandle])
 
   const createDrag = useCallback(() => {
-    const rec = (list: DragWidgetTypes[], totalX: number, totalY: number) => {
+    const rec = (list: DragWidgetTypes[], level: number = 0) => {
       if (!list) return
 
       const d: any[] = []
@@ -226,21 +226,17 @@ export default function Designer() {
             value={item}
             onValueChange={onValueChange}
             scale={scale}
+            level={level}
           >
             {item.type !== 'group' && <div>{item.name}</div>}
-            {item.children &&
-              rec(
-                item.children,
-                totalX + item.position.left,
-                totalY + item.position.top,
-              )}
+            {item.children && rec(item.children, level + 1)}
           </Drag>
         )
       }
       return d
     }
 
-    return rec(widgets!, 0, 0)
+    return rec(widgets!)
   }, [onValueChange, scale, widgets])
 
   useEffect(() => {

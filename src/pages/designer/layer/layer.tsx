@@ -54,8 +54,9 @@ const groupName = 'group',
     const _dragItem = newFlatten[dragId]
 
     const dropItem = newFlatten[dropId]
-    const parents = dropItem.parent.split(separator)
-    let dropParent = newFlatten[parents[parents.length - 1]]
+    const parents = dropItem.parent?.split(separator)
+    let dropParent =
+      newFlatten[parents ? parents[parents.length - 1] : flattenTopName]
     if (dropId === dragId) {
       return []
     }
@@ -97,12 +98,13 @@ const groupName = 'group',
           if (!dropItem.children) {
             dropItem.children = []
           }
-          _dragItem.parent = dropItem.parent + separator + dropId
+          _dragItem.parent = dropItem.parent
+            ? dropItem.parent + separator + dropId
+            : dropId
           dropItem.children.unshift(dragId)
           _dragItem.children?.forEach((id: string) => {
             const item = newFlatten[id]
-            item.parent =
-              dropItem.parent + separator + dropId + separator + dragId
+            item.parent = _dragItem.parent + separator + dragId
           })
           break
       }
@@ -133,8 +135,13 @@ const LayerItem: FC<{
   const ref = useRef<HTMLDivElement>(null)
   const [position, setPosition] = useState<'up' | 'middle' | 'down'>()
 
-  const { flatten, selected, controlled, separator, onFlattenChange } =
-    useDesigner()
+  const {
+    flatten,
+    selected,
+    controlled,
+    separator,
+    onFlattenChange,
+  } = useDesigner()
 
   const { uniqueId, type } = value,
     item = useMemo(
@@ -155,70 +162,74 @@ const LayerItem: FC<{
     [item],
   )
 
-  const drop: (item: DragObject, monitor: DropTargetMonitor) => void =
-    useCallback(
-      (item: DragObject, monitor) => {
-        // 如果 children 已经作为了 drop target，不处理
-        const didDrop = monitor.didDrop()
-        if (didDrop) {
-          return
+  const drop: (
+    item: DragObject,
+    monitor: DropTargetMonitor,
+  ) => void = useCallback(
+    (item: DragObject, monitor) => {
+      // 如果 children 已经作为了 drop target，不处理
+      const didDrop = monitor.didDrop()
+      if (didDrop) {
+        return
+      }
+
+      const [newFlatten, newId] = dropItem({
+        dragId: item.uniqueId, // 内部拖拽用dragId
+        dropId: uniqueId,
+        position,
+        flatten,
+        separator,
+      })
+      newFlatten && onFlattenChange(newFlatten)
+      newId && setDragSelected(dispatch, [newId])
+    },
+    [dispatch, flatten, onFlattenChange, position, separator, uniqueId],
+  )
+
+  const hover: (
+    item: DragObject,
+    monitor: DropTargetMonitor,
+  ) => void = useCallback(
+    (item: DragObject, monitor) => {
+      const dragId = item.uniqueId
+
+      // 拖拽元素下标与鼠标悬浮元素下标一致或拖拽元素包含鼠标悬浮元素时，不进行操作
+      if (
+        dragId === uniqueId ||
+        flatten?.[uniqueId].parent.split(separator).includes(dragId)
+      ) {
+        setPosition(undefined)
+        return
+      }
+
+      const didHover = monitor.isOver({ shallow: true })
+      if (didHover) {
+        const hoverBoundingRect =
+          ref.current && ref.current.getBoundingClientRect()
+
+        const hoverHeight = hoverBoundingRect?.height || 0
+        const dragOffset = monitor.getClientOffset()
+        const hoverClientY =
+          (dragOffset?.y || 0) - (hoverBoundingRect?.top || 0)
+
+        const topBoundary = Math.min(hoverHeight / 3, 60),
+          bottomBoundary = Math.max(hoverHeight / 1.5, hoverHeight - 60)
+
+        // let position: any
+        if (hoverClientY < topBoundary) {
+          // position = 'up'
+          setPosition('up')
+        } else if (hoverClientY <= bottomBoundary && type === groupName) {
+          // position = 'middle'
+          setPosition('middle')
+        } else if (hoverClientY > bottomBoundary) {
+          // position = 'down'
+          setPosition('down')
         }
-
-        const [newFlatten, newId] = dropItem({
-          dragId: item.uniqueId, // 内部拖拽用dragId
-          dropId: uniqueId,
-          position,
-          flatten,
-          separator,
-        })
-        newFlatten && onFlattenChange(newFlatten)
-        newId && setDragSelected(dispatch, [newId])
-      },
-      [dispatch, flatten, onFlattenChange, position, separator, uniqueId],
-    )
-
-  const hover: (item: DragObject, monitor: DropTargetMonitor) => void =
-    useCallback(
-      (item: DragObject, monitor) => {
-        const dragId = item.uniqueId
-
-        // 拖拽元素下标与鼠标悬浮元素下标一致或拖拽元素包含鼠标悬浮元素时，不进行操作
-        if (
-          dragId === uniqueId ||
-          flatten?.[uniqueId].parent.split(separator).includes(dragId)
-        ) {
-          setPosition(undefined)
-          return
-        }
-
-        const didHover = monitor.isOver({ shallow: true })
-        if (didHover) {
-          const hoverBoundingRect =
-            ref.current && ref.current.getBoundingClientRect()
-
-          const hoverHeight = hoverBoundingRect?.height || 0
-          const dragOffset = monitor.getClientOffset()
-          const hoverClientY =
-            (dragOffset?.y || 0) - (hoverBoundingRect?.top || 0)
-
-          const topBoundary = Math.min(hoverHeight / 3, 60),
-            bottomBoundary = Math.max(hoverHeight / 1.5, hoverHeight - 60)
-
-          // let position: any
-          if (hoverClientY < topBoundary) {
-            // position = 'up'
-            setPosition('up')
-          } else if (hoverClientY <= bottomBoundary && type === groupName) {
-            // position = 'middle'
-            setPosition('middle')
-          } else if (hoverClientY > bottomBoundary) {
-            // position = 'down'
-            setPosition('down')
-          }
-        }
-      },
-      [uniqueId, flatten, separator, type],
-    )
+      }
+    },
+    [uniqueId, flatten, separator, type],
+  )
 
   const [{ canDrop, isOver }, dropRef] = useDrop(
     () => ({
@@ -335,8 +346,13 @@ const LayerItem: FC<{
 
 const Layer = memo(() => {
   const dispatch = useDispatch()
-  const { widgets, handleAddWidget, separator, onFlattenChange, selected } =
-    useDesigner()
+  const {
+    widgets,
+    handleAddWidget,
+    separator,
+    onFlattenChange,
+    selected,
+  } = useDesigner()
 
   const createLayer = useCallback(() => {
     const rec = (list: DragWidgetTypes[], level: number) => {
@@ -361,7 +377,7 @@ const Layer = memo(() => {
   const handleAddGroup = useCallback(
     e => {
       e.stopPropagation()
-      const { newWidget, newFlatten } = handleAddWidget({
+      let { newWidget, newFlatten } = handleAddWidget({
         name: '分组',
         type: groupName,
         position: {
@@ -372,7 +388,15 @@ const Layer = memo(() => {
         },
       })
 
-      const flatten = selected?.reduce((flatten, id) => {
+      let level = 0,
+        parent: string
+      let flatten = selected?.reverse()?.reduce((flatten, id) => {
+        const parents = flatten[id].parent.split(separator)
+        if (level < parents.length) {
+          level = parents.length
+          parent = parents[parents.length - 1]
+        }
+
         const [newFlatten] = dropItem({
           dragId: id,
           dropId: newWidget?.uniqueId,
@@ -384,7 +408,15 @@ const Layer = memo(() => {
         return newFlatten
       }, newFlatten)
 
-      flatten && onFlattenChange(flatten)
+      ;[newFlatten] = dropItem({
+        dragId: newWidget?.uniqueId,
+        dropId: parent!,
+        position: 'middle',
+        flatten,
+        separator,
+      })
+
+      newFlatten && onFlattenChange(newFlatten)
       setDragSelected(dispatch, [newWidget.uniqueId])
     },
     [dispatch, handleAddWidget, onFlattenChange, selected, separator],

@@ -29,7 +29,7 @@ const useDesigner = () => {
     (
       widget,
       name = flattenTopName,
-      parent?,
+      parent?: string,
       result = {},
       totalX: number = 0,
       totalY: number = 0,
@@ -190,19 +190,24 @@ const useDesigner = () => {
     [flattenWidgets, onFlattenChange, widgets],
   )
 
+  const createWidget = useCallback((widget?: any) => {
+    const uniqueId = uuidV4()
+
+    return {
+      ...widget,
+      uniqueId,
+      position: {
+        ...widget.position,
+        left: widget.position.left || 0,
+        top: widget.position.top || 0,
+      },
+    }
+  }, [])
+
   const handleAddWidget = useCallback(
     widget => {
       const _widgets = widgets ? [...widgets] : [],
-        uniqueId = uuidV4(),
-        newWidget = {
-          ...widget,
-          uniqueId,
-          position: {
-            ...widget.position,
-            left: widget.position.left || 0,
-            top: widget.position.top || 0,
-          },
-        }
+        newWidget = createWidget(widget)
 
       _widgets?.unshift(newWidget)
 
@@ -210,7 +215,7 @@ const useDesigner = () => {
 
       return { newWidget, newFlatten, newWidgets: _widgets }
     },
-    [flattenWidgets, widgets],
+    [createWidget, flattenWidgets, widgets],
   )
 
   const addWidget = useCallback(
@@ -237,6 +242,7 @@ const useDesigner = () => {
     flattenWidgets,
     addWidget,
     handleAddWidget,
+    createWidget,
   }
 }
 
